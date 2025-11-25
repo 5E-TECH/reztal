@@ -67,18 +67,28 @@ export class BotService {
   private async generateImage(
     data: any,
   ): Promise<{ imagePath: string; caption: string }> {
-    const templatePath = path.resolve(
-      __dirname,
-      process.env.NODE_ENV === 'production'
-        ? '../../uploads/template.png'
-        : '../../src/uploads/template.png',
-    );
+    // Always keep uploads inside project-root/src/uploads so both dev & prod resolve correctly
+    const uploadsDir = path.resolve(process.cwd(), 'src', 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
 
-    const img = await loadImage(templatePath);
-    const canvas = createCanvas(img.width, img.height);
+    const templatePath = path.join(uploadsDir, 'template.png');
+    const templateExists = fs.existsSync(templatePath);
+
+    const img = templateExists ? await loadImage(templatePath) : null;
+    const canvas = templateExists
+      ? createCanvas(img!.width, img!.height)
+      : createCanvas(1600, 2000);
     const ctx = canvas.getContext('2d');
 
-    ctx.drawImage(img, 0, 0, img.width, img.height);
+    if (templateExists) {
+      ctx.drawImage(img!, 0, 0, img!.width, img!.height);
+    } else {
+      // fallback background if template.png is missing
+      ctx.fillStyle = '#f4f4f4';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     // ==== MA'LUMOTLAR ====
     const name = data[5] || '';
@@ -123,18 +133,7 @@ export class BotService {
     ctx.fillText(exp, 1200, 1320);
 
     // ==== Rasmni saqlash ====
-    const outputDir = path.resolve(
-      __dirname,
-      process.env.NODE_ENV === 'production'
-        ? '../../uploads'
-        : '../../src/uploads',
-    );
-
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    const fileName = path.join(outputDir, `output_${Date.now()}.png`);
+    const fileName = path.join(uploadsDir, `output_${Date.now()}.png`);
 
     const out = fs.createWriteStream(fileName);
     const stream = canvas.createPNGStream();

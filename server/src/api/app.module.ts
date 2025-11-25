@@ -8,11 +8,9 @@ import { BotService } from './bot/bot.service';
   imports: [
     TelegrafModule.forRoot({
       token:
-        process.env.BOT_TOKEN ||
-        '8560776804:AAHemL86sZR2uUWSt3aUqwE0-Ndy4uB_49U',
-      include: [BotUpdate], // update classlarini shu yerga qo'shamiz
+        process.env.BOT_TOKEN || 'token_here',
     }),
   ],
   providers: [BotUpdate, BotService], // providerlar shu modulda bo'lishi kerak
 })
-export class AppModule {}
+export class AppModule { }
