@@ -7,166 +7,203 @@ import * as path from 'path';
 export class BotService {
   private userStates = new Map<string, any>();
 
+  getUserState(id: string) {
+    return this.userStates.get(id);
+  }
+
+  setUserState(id: string, state: any) {
+    this.userStates.set(id, state);
+  }
+
+  deleteUserState(id: string) {
+    this.userStates.delete(id);
+  }
+
+  // ===== KEYBOARDS =====
+  genderKeyboard = {
+    keyboard: [['Erkak', 'Ayol']],
+    resize_keyboard: true,
+    one_time_keyboard: true,
+  };
+
+  regionsKeyboard = {
+    keyboard: [
+      ['Toshkent shahri', 'Toshkent viloyati'],
+      ['Andijon', 'Farg‘ona', 'Namangan'],
+      ['Samarqand', 'Buxoro', 'Xorazm'],
+      ['Qashqadaryo', 'Surxondaryo'],
+      ['Jizzax', 'Sirdaryo', 'Navoiy'],
+      ['Qoraqalpog‘iston'],
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: true,
+  };
+
+  languageKeyboard = {
+    keyboard: [
+      ['O‘zbek', 'Rus'],
+      ['Ingliz', 'Koreys'],
+      ['Boshqa'],
+      ['🟢 Tanlashni yakunlash'],
+    ],
+    resize_keyboard: true,
+  };
+
+  phoneKeyboard = {
+    keyboard: [[{ text: '📞 Raqamni ulashish', request_contact: true }]],
+    resize_keyboard: true,
+    one_time_keyboard: true,
+  };
+
+  // ===== QUESTIONS =====
   questions = [
-    '0. Qaysi tarifni tanlaganingiz?',
     '1. Kasbingiz nima?',
     '2. Rezyumengizni PDF ko‘rinishida yuboring.',
     '3. Tajribangiz qancha?',
     '4. Qancha maosh so‘raysiz?',
     '5. Ismingiz?',
     '6. Yoshingiz?',
-    '7. Yashash joyingiz (Shahar/Viloyat)?',
-    "8. Til bilimingiz (O'zbek/Rus/Ingliz)?",
-    '9. Portfolio (agar bo‘lsa)?',
-    '10. Sohangizga aloqador ko‘nikmalar?',
-    '11. Telefon raqamingiz?',
-    '12. Telegram username?',
+    '7. Jinsingizni tanlang:',
+    '8. Yashash joyingizni tanlang:',
+    '9. Til bilimingizni tanlang:',
+    '10. Portfolio (agar bo‘lsa)?',
+    '11. Sohangizga aloqador ko‘nikmalar?',
+    '12. Telefon raqamingiz?',
+    '13. Telegram username?',
   ];
 
-  async startCollection(chatId: string) {
-    try {
-        console.log(chatId);
-        this.userStates.set(chatId, { step: 0, answers: {} });
-        return this.questions[0];
-    } catch (error) {
-        console.log(error);
-        
-    }
-    
+  // ===== START STATE =====
+  async startCollection(chatId: string): Promise<string> {
+    this.userStates.set(chatId, {
+      step: 1,
+      answers: {},
+      awaitingLanguageText: false,
+      gender: null,
+    });
+    return this.questions[0];
   }
 
+  // ===== MAIN LOGIC =====
   async handleAnswer(chatId: string, msg: any) {
     const state = this.userStates.get(chatId);
-    if (!state) {
-      console.log('wrong state');
-
-      return null;
-    }
+    if (!state) return null;
 
     const step = state.step;
 
-    if (step === 2 && !msg.document) {
-      return '❗ Iltimos, rezyumeni PDF shaklda yuboring.';
+    // 7, 8, 9, 10, 12 — Update ichida boshqariladi
+    if (step === 7 || step === 8 || step === 9 || step === 10 || step === 12)
+      return null;
+
+    // === STEP 2 — PDF ===
+    if (step === 2) {
+      if (!msg.document) {
+        return '❗ Iltimos, rezyumeni PDF shaklda yuboring.';
+      }
+
+      // Faqat PDF fayllarni qabul qilish
+      const fileName = msg.document.file_name?.toLowerCase() || '';
+      const mimeType = msg.document.mime_type || '';
+
+      if (!fileName.endsWith('.pdf') && mimeType !== 'application/pdf') {
+        return '❗ Iltimos, faqat PDF formatidagi rezyumeni yuboring. Boshqa formatdagi fayllar qabul qilinmaydi.';
+      }
+
+      state.answers[2] = 'PDF qabul qilindi';
+    }
+    // === MATN JAVOBLARI ===
+    else if ('text' in msg) {
+      state.answers[step] = msg.text;
+    } else {
+      return null;
     }
 
-    state.answers[step] = msg.text || 'PDF qabul qilindi';
+    // === NEXT STEP ===
     state.step++;
 
-    if (state.step >= this.questions.length) {
-      const finalPost = state.answers;
-      const result = await this.generateImage(finalPost);
-
+    // === FINISH ===
+    if (state.step > 13) {
+      const result = await this.generateImage(state.answers, state.gender);
       this.userStates.delete(chatId);
-
-      return result; // { imagePath, caption }
+      return result;
     }
 
-    return this.questions[state.step];
+    // 6-qadamdan keyin 7-qadamga o'tish
+    if (state.step === 7) {
+      return 'step7'; // Maxsus signal
+    }
+
+    // 11-qadamdan keyin 12-qadamga o'tish
+    if (state.step === 12) {
+      return 'step12'; // Maxsus signal
+    }
+
+    return this.questions[state.step - 1];
   }
 
-  private async generateImage(
-    data: any,
-  ): Promise<{ imagePath: string; caption: string }> {
-    // Always keep uploads inside project-root/src/uploads so both dev & prod resolve correctly
+  // ===== IMAGE GENERATOR =====
+  async generateImage(data: any, gender?: string) {
     const uploadsDir = path.resolve(process.cwd(), 'src', 'uploads');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    const templatePath = path.join(uploadsDir, 'template.png');
-    const templateExists = fs.existsSync(templatePath);
+    const templatePath =
+      gender === 'female'
+        ? path.join(uploadsDir, 'women_template.png')
+        : path.join(uploadsDir, 'template.png');
 
-    const img = templateExists ? await loadImage(templatePath) : null;
-    const canvas = templateExists
-      ? createCanvas(img!.width, img!.height)
-      : createCanvas(1600, 2000);
+    const img = await loadImage(templatePath);
+    const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext('2d');
 
-    if (templateExists) {
-      ctx.drawImage(img!, 0, 0, img!.width, img!.height);
-    } else {
-      // fallback background if template.png is missing
-      ctx.fillStyle = '#f4f4f4';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+    ctx.drawImage(img, 0, 0);
 
-    // ==== MA'LUMOTLAR ====
     const name = data[5] || '';
     const age = data[6] || '';
     const job = data[1] || '';
     const salary = data[4] || '';
     const exp = data[3] || '';
 
-    // Ranglar
-    const gray = '#606060';
-    const black = '#000000';
-
-    // ========================
-    // ISM (o‘ngga + pastga)
-    // ========================
-    ctx.fillStyle = gray;
+    ctx.fillStyle = '#606060';
     ctx.font = 'bold 40px Sans';
     ctx.fillText(name, 450, 780);
-
-    // ========================
-    // YOSH (chapga + pastga)
-    // ========================
     ctx.fillText(age + ' yosh', 1200, 780);
 
-    // ========================
-    // KASB (markazga yaqinroq)
-    // ========================
-    ctx.fillStyle = black;
+    ctx.fillStyle = '#000';
     ctx.font = 'bold 90px Sans';
     ctx.fillText(job, 700, 1050);
 
-    // ========================
-    // MAOSH (o‘ng & tepaga)
-    // ========================
-    ctx.fillStyle = gray;
+    ctx.fillStyle = '#606060';
     ctx.font = 'bold 40px Sans';
     ctx.fillText(salary, 450, 1320);
-
-    // ========================
-    // TAJRIBA (chapga)
-    // ========================
     ctx.fillText(exp, 1200, 1320);
 
-    // ==== Rasmni saqlash ====
     const fileName = path.join(uploadsDir, `output_${Date.now()}.png`);
-
     const out = fs.createWriteStream(fileName);
     const stream = canvas.createPNGStream();
     stream.pipe(out);
 
     await new Promise<void>((resolve) => out.on('finish', () => resolve()));
 
-    // ============================
-    //      CAPTION (YANGILANGAN)
-    // ============================
     const caption = `
 ▫️Kasbi: ${job}
+▫️Tajribasi: ${exp}
+▫️Maosh: ${salary}
 
-Tajribasi: ${exp}
-Maosh: ${salary}
+▫️Ismi: ${name}
+▫️Yoshi: ${age}
+▫️Yashash joyi: ${data[8] || ''}
 
-Ismi: ${name}
-Yoshi: ${age}
-Yashash joyi: ${data[7] || ''}
-Til bilimi: ${data[8] || ''}
-Portfolio: ${data[9] || ''}
-Ko'nikmalar: 
-${data[10] || ''}
+▫️Til bilimi: ${Array.isArray(data[9]) ? data[9].join(', ') : data[9] || ''}
 
-Aloqa uchun:
-${data[11] || ''}
+Portfolio: ${data[10] || ''}
+Ko'nikmalar: ${data[11] || ''}
+
+Aloqa:
 ${data[12] || ''}
-
-- - - - -
+${data[13] || ''}
 
 🪪 Rezyume joylash: @Reztal_post
-
-@Reztal_CV bilan eng mosini toping!
 `;
 
     return { imagePath: fileName, caption };
