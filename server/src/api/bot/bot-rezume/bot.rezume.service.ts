@@ -29,11 +29,11 @@ export class BotService {
   regionsKeyboard = {
     keyboard: [
       ['Toshkent shahri', 'Toshkent viloyati'],
-      ['Andijon', 'Farg‘ona', 'Namangan'],
+      ['Andijon', "Farg'ona", 'Namangan'],
       ['Samarqand', 'Buxoro', 'Xorazm'],
       ['Qashqadaryo', 'Surxondaryo'],
       ['Jizzax', 'Sirdaryo', 'Navoiy'],
-      ['Qoraqalpog‘iston'],
+      ["Qoraqalpog'iston"],
     ],
     resize_keyboard: true,
     one_time_keyboard: true,
@@ -55,19 +55,48 @@ export class BotService {
     one_time_keyboard: true,
   };
 
+  // ===== TELEFON RAQAM VALIDATSIYASI =====
+  public validatePhoneNumber(phone: string): {
+    isValid: boolean;
+    message?: string;
+  } {
+    if (!phone) {
+      return {
+        isValid: false,
+        message: '❗ Iltimos, telefon raqamingizni kiriting.',
+      };
+    }
+
+    // Telefon raqamini tozalash
+    const cleaned = phone.replace(/\D/g, '');
+
+    // +998XXXXXXXXX formatini tekshirish (12 ta belgi)
+    const phoneRegex = /^\+998\d{9}$/;
+
+    if (!phoneRegex.test(cleaned)) {
+      return {
+        isValid: false,
+        message:
+          '❗ Iltimos, toʻgʻri Oʻzbekiston telefon raqamini kiriting (+998XXXXXXXXX).\n\nMisol: +998901234567\n\n❗ Eslatma: Faqat +998 bilan boshlangan va 12 ta raqamdan iborat raqamlar qabul qilinadi.',
+      };
+    }
+
+    return { isValid: true };
+  }
+
   // ===== QUESTIONS =====
   questions = [
     '1. Kasbingiz nima?',
-    '2. Rezyumengizni PDF ko‘rinishida yuboring.',
+    "2. Rezyumengizni PDF ko'rinishida yuboring.",
     '3. Tajribangiz qancha?',
-    '4. Qancha maosh so‘raysiz?',
+    "4. Qancha maosh so'raysiz? ",
     '5. Ismingiz?',
     '6. Yoshingiz?',
     '7. Jinsingizni tanlang:',
     '8. Yashash joyingizni tanlang:',
     '9. Til bilimingizni tanlang:',
-    '10. Portfolio (agar bo‘lsa)?',
-    '11. Sohangizga aloqador ko‘nikmalar?',
+    "10. Portfolio (agar bo'lsa)?",
+    "11. Sohangizga aloqador ko'nikmalar?",
     '12. Telefon raqamingiz?',
     '13. Telegram username?',
   ];
@@ -120,11 +149,14 @@ export class BotService {
     // === NEXT STEP ===
     state.step++;
 
-    // === FINISH ===
+    // === FINISH (CONFIRMATION UCHUN) ===
     if (state.step > 13) {
-      const result = await this.generateImage(state.answers, state.gender);
-      this.userStates.delete(chatId);
-      return result;
+      // Rasm generatsiya qilish o'rniga confirmation uchun signal qaytaramiz
+      return {
+        confirmation: true,
+        answers: state.answers,
+        gender: state.gender,
+      };
     }
 
     // 6-qadamdan keyin 7-qadamga o'tish
