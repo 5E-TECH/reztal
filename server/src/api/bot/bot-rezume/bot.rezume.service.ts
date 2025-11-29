@@ -113,7 +113,7 @@ export class BotService {
   }
 
   // ===== MAIN LOGIC =====
-  async handleAnswer(chatId: string, msg: any) {
+  async handleUserAnswer(chatId: string, msg: any) {
     const state = this.userStates.get(chatId);
     if (!state) return null;
 
@@ -239,5 +239,10 @@ ${data[13] || ''}
 `;
 
     return { imagePath: fileName, caption };
+  }
+
+  // ===== ESKI METODNI SAQLASH (compatibility uchun) =====
+  async handleAnswer(chatId: string, msg: any) {
+    return this.handleUserAnswer(chatId, msg);
   }
 }

@@ -57,21 +57,52 @@ export class BotVacancyService {
       };
     }
 
-    // Telefon raqamini tozalash
-    const cleaned = phone.replace(/\D/g, '');
+    // Bo'sh joylarni olib tashlash
+    const cleaned = phone.replace(/\s/g, '');
 
-    // +998XXXXXXXXX formatini tekshirish (12 ta belgi)
+    // Aniq 13 ta belgi va +998XXXXXXXXX formatini tekshirish
+    if (cleaned.length !== 13) {
+      return {
+        isValid: false,
+        message: `❗ Telefon raqami aniq 13 ta belgidan iborat bo'lishi kerak.\n\nSiz kiritgan raqam ${cleaned.length} ta belgidan iborat.\n\n✅ To'g'ri format: +998901234567`,
+      };
+    }
+
+    // +998 bilan boshlanishini tekshirish
+    if (!cleaned.startsWith('+998')) {
+      return {
+        isValid: false,
+        message:
+          "❗ Telefon raqami +998 bilan boshlanishi kerak.\n\n✅ To'g'ri format: +998901234567",
+      };
+    }
+
+    // Faqat raqamlar va + belgisini tekshirish
     const phoneRegex = /^\+998\d{9}$/;
-
     if (!phoneRegex.test(cleaned)) {
       return {
         isValid: false,
         message:
-          '❗ Iltimos, toʻgʻri Oʻzbekiston telefon raqamini kiriting (+998XXXXXXXXX).\n\nMisol: +998901234567\n\n❗ Eslatma: Faqat +998 bilan boshlangan va 12 ta raqamdan iborat raqamlar qabul qilinadi.',
+          "❗ Iltimos, toʻgʻri Oʻzbekiston telefon raqamini kiriting.\n\n✅ To'g'ri format: +998901234567\n\n❗ Faqat raqamlar va + belgisi qabul qilinadi.",
       };
     }
 
     return { isValid: true };
+  }
+
+  // ===== TELEFON RAQAMNI TOZALASH =====
+  private cleanPhoneNumber(phone: string): string {
+    if (!phone) return '';
+
+    // 1. Barcha bo'sh joylarni olib tashlash
+    let cleaned = phone.replace(/\s/g, '');
+
+    // 2. Agar + belgisi yo'q bo'lsa, qo'shamiz
+    if (cleaned.startsWith('+998')) {
+      return cleaned
+    }
+
+    return cleaned;
   }
 
   // ===== STATE MANAGEMENT =====
@@ -118,13 +149,16 @@ export class BotVacancyService {
       }
 
       if (phone) {
+        // Telefon raqamini tozalash
+        const cleanedPhone = this.cleanPhoneNumber(phone);
+
         // Telefon raqamini validatsiya qilish
-        const validation = this.validatePhoneNumber(phone);
+        const validation = this.validatePhoneNumber(cleanedPhone);
         if (!validation.isValid) {
           return validation.message; // Xato xabarini qaytarish
         }
 
-        state.answers[8] = phone;
+        state.answers[8] = cleanedPhone;
         state.step = 9; // Keyingi qadam
 
         // Confirmation uchun maxsus signal qaytaramiz
@@ -229,5 +263,11 @@ export class BotVacancyService {
 `;
 
     return { imagePath: fileName, caption };
+  }
+
+  // ===== YANGI METOD: generateVacancyImage =====
+  async generateVacancyImage(data: any) {
+    // generateEmployerImage metodini chaqiramiz, chunki ular bir xil ishni bajaradi
+    return this.generateEmployerImage(data);
   }
 }

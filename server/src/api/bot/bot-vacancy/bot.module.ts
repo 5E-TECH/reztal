@@ -12,6 +12,5 @@ import { BotMainUpdate } from '../bot.main.update';
     }),
   ],
   providers: [BotVacancyService, BotMainUpdate],
-  exports: [BotVacancyService], // BotMainUpdate da ishlatish uchun
 })
 export class BotModule {}
