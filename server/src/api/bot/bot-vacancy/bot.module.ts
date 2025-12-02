@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { BotVacancyService } from './bot.service';
 import { BotMainUpdate } from '../bot.main.update';
+import config from 'src/config';
 
 @Module({
   imports: [
     TelegrafModule.forRootAsync({
       useFactory: () => ({
-        token: process.env.BOT_TOKEN!,
+        token: config.BOT_TOKEN!,
       }),
     }),
   ],
