@@ -67,17 +67,67 @@ export class BotService {
       };
     }
 
-    // Telefon raqamini tozalash
+    // Telefon raqamini tozalash - faqat raqamlarni qoldirish
     const cleaned = phone.replace(/\D/g, '');
 
-    // +998XXXXXXXXX formatini tekshirish (12 ta belgi)
-    const phoneRegex = /^\+998\d{9}$/;
+    // Agar + bilan boshlangan bo'lsa, + ni olib tashlash
+    const numbersOnly = cleaned.startsWith('998')
+      ? cleaned
+      : cleaned.replace(/^\+?/, '');
 
-    if (!phoneRegex.test(cleaned)) {
+    console.log('Original phone:', phone);
+    console.log('Cleaned:', numbersOnly);
+    console.log('Length:', numbersOnly.length);
+
+    // Telefon raqami 12 ta raqamdan iborat bo'lishi kerak (998XXXXXXXXX)
+    if (numbersOnly.length !== 12) {
       return {
         isValid: false,
         message:
-          '❗ Iltimos, toʻgʻri Oʻzbekiston telefon raqamini kiriting (+998XXXXXXXXX).\n\nMisol: +998901234567\n\n❗ Eslatma: Faqat +998 bilan boshlangan va 12 ta raqamdan iborat raqamlar qabul qilinadi.',
+          '❗ Iltimos, toʻgʻri Oʻzbekiston telefon raqamini kiriting (12 ta raqam).\n\n' +
+          'Misol: +998901234567 yoki 998901234567\n' +
+          'Contact yuborsangiz ham qabul qilinadi.',
+      };
+    }
+
+    // 998 bilan boshlanishini tekshirish
+    if (!numbersOnly.startsWith('998')) {
+      return {
+        isValid: false,
+        message:
+          '❗ Telefon raqami 998 bilan boshlanishi kerak.\n\n' +
+          'Misol: +998901234567\n' +
+          'Yoki: 998901234567',
+      };
+    }
+
+    // Operator kodlarini tekshirish (90, 91, 93, 94, 95, 97, 98, 99)
+    const operatorCode = numbersOnly.substring(3, 5);
+    const validOperatorCodes = [
+      '90',
+      '91',
+      '93',
+      '94',
+      '95',
+      '97',
+      '98',
+      '99',
+      '77',
+      '88',
+    ];
+
+    if (!validOperatorCodes.includes(operatorCode)) {
+      return {
+        isValid: false,
+        message:
+          '❗ Notoʻgʻri operator kodi. Oʻzbekistonda quyidagi operatorlar mavjud:\n' +
+          '• Ucell: 93, 94\n' +
+          '• Beeline: 90, 91\n' +
+          '• Uzmobile: 95\n' +
+          '• Mobiuz: 97\n' +
+          '• Perfectum: 98\n' +
+          '• Humans: 33\n' +
+          'Iltimos, toʻgʻri raqam kiriting.',
       };
     }
 
@@ -112,64 +162,344 @@ export class BotService {
     return this.questions[0];
   }
 
-  // ===== MAIN LOGIC =====
-  async handleUserAnswer(chatId: string, msg: any) {
+  // ===== MAIN LOGIC - YANGI VERSIYA =====
+  async handleUserAnswer(chatId: string, msg: any): Promise<any> {
     const state = this.userStates.get(chatId);
     if (!state) return null;
 
     const step = state.step;
 
-    // 7, 8, 9, 10, 12 — Update ichida boshqariladi
-    if (step === 7 || step === 8 || step === 9 || step === 10 || step === 12)
-      return null;
+    // === STEP 1 — KASB ===
+    if (step === 1) {
+      if ('text' in msg && msg.text) {
+        state.answers[1] = msg.text;
+        state.step = 2;
+        this.setUserState(chatId, state);
+        return {
+          message: this.questions[1],
+          keyboard: { remove_keyboard: true },
+        };
+      }
+    }
 
     // === STEP 2 — PDF ===
     if (step === 2) {
       if (!msg.document) {
-        return '❗ Iltimos, rezyumeni PDF shaklda yuboring.';
+        return {
+          message: '❗ Iltimos, rezyumeni PDF shaklda yuboring.',
+          keyboard: { remove_keyboard: true },
+        };
       }
 
-      // Faqat PDF fayllarni qabul qilish
       const fileName = msg.document.file_name?.toLowerCase() || '';
       const mimeType = msg.document.mime_type || '';
 
       if (!fileName.endsWith('.pdf') && mimeType !== 'application/pdf') {
-        return '❗ Iltimos, faqat PDF formatidagi rezyumeni yuboring. Boshqa formatdagi fayllar qabul qilinmaydi.';
+        return {
+          message: '❗ Iltimos, faqat PDF formatidagi rezyumeni yuboring.',
+          keyboard: { remove_keyboard: true },
+        };
       }
 
       state.answers[2] = 'PDF qabul qilindi';
-    }
-    // === MATN JAVOBLARI ===
-    else if ('text' in msg) {
-      state.answers[step] = msg.text;
-    } else {
-      return null;
-    }
-
-    // === NEXT STEP ===
-    state.step++;
-
-    // === FINISH (CONFIRMATION UCHUN) ===
-    if (state.step > 13) {
-      // Rasm generatsiya qilish o'rniga confirmation uchun signal qaytaramiz
+      state.step = 3;
+      this.setUserState(chatId, state);
       return {
-        confirmation: true,
-        answers: state.answers,
-        gender: state.gender,
+        message: this.questions[2],
+        keyboard: { remove_keyboard: true },
       };
     }
 
-    // 6-qadamdan keyin 7-qadamga o'tish
-    if (state.step === 7) {
-      return 'step7'; // Maxsus signal
+    // === STEP 3 — TAJRIBA ===
+    if (step === 3) {
+      if ('text' in msg && msg.text) {
+        state.answers[3] = msg.text;
+        state.step = 4;
+        this.setUserState(chatId, state);
+        return {
+          message: this.questions[3],
+          keyboard: { remove_keyboard: true },
+        };
+      }
     }
 
-    // 11-qadamdan keyin 12-qadamga o'tish
-    if (state.step === 12) {
-      return 'step12'; // Maxsus signal
+    // === STEP 4 — MAOSH ===
+    if (step === 4) {
+      if ('text' in msg && msg.text) {
+        state.answers[4] = msg.text;
+        state.step = 5;
+        this.setUserState(chatId, state);
+        return {
+          message: this.questions[4],
+          keyboard: { remove_keyboard: true },
+        };
+      }
     }
 
-    return this.questions[state.step - 1];
+    // === STEP 5 — ISM ===
+    if (step === 5) {
+      if ('text' in msg && msg.text) {
+        state.answers[5] = msg.text;
+        state.step = 6;
+        this.setUserState(chatId, state);
+        return {
+          message: this.questions[5],
+          keyboard: { remove_keyboard: true },
+        };
+      }
+    }
+
+    // === STEP 6 — YOSH ===
+    if (step === 6) {
+      if ('text' in msg && msg.text) {
+        state.answers[6] = msg.text;
+        state.step = 7;
+        this.setUserState(chatId, state);
+        return {
+          message: this.questions[6],
+          keyboard: this.genderKeyboard,
+        };
+      }
+    }
+
+    // === STEP 7 — JINS ===
+    if (step === 7) {
+      if ('text' in msg && msg.text) {
+        const genderText = msg.text;
+        if (genderText === 'Erkak' || genderText === 'Ayol') {
+          state.answers[7] = genderText;
+          state.gender = genderText === 'Ayol' ? 'female' : 'male';
+          state.step = 8;
+          this.setUserState(chatId, state);
+          return {
+            message: this.questions[7],
+            keyboard: this.regionsKeyboard,
+          };
+        } else {
+          return {
+            message: '❗ Iltimos, Erkak yoki Ayol tugmalaridan birini tanlang:',
+            keyboard: this.genderKeyboard,
+          };
+        }
+      }
+      return {
+        message: this.questions[6],
+        keyboard: this.genderKeyboard,
+      };
+    }
+
+    // === STEP 8 — HUDUD ===
+    if (step === 8) {
+      if ('text' in msg && msg.text) {
+        const region = msg.text;
+        const validRegions = this.regionsKeyboard.keyboard.flat();
+
+        if (validRegions.includes(region)) {
+          state.answers[8] = region;
+          state.step = 9;
+          this.setUserState(chatId, state);
+          return {
+            message: this.questions[8],
+            keyboard: this.languageKeyboard,
+          };
+        } else {
+          return {
+            message: '❗ Iltimos, yashash joyingizni tugmalardan tanlang:',
+            keyboard: this.regionsKeyboard,
+          };
+        }
+      }
+      return {
+        message: this.questions[7],
+        keyboard: this.regionsKeyboard,
+      };
+    }
+
+    // === STEP 9 — TILLAR ===
+    if (step === 9) {
+      if ('text' in msg && msg.text) {
+        const text = msg.text;
+
+        if (!Array.isArray(state.answers[9])) {
+          state.answers[9] = [];
+        }
+
+        if (text === 'Boshqa') {
+          state.awaitingLanguageText = true;
+          return {
+            message: 'Til nomini yozing:',
+            keyboard: { remove_keyboard: true },
+          };
+        }
+
+        if (state.awaitingLanguageText && text) {
+          state.answers[9].push(text);
+          state.awaitingLanguageText = false;
+
+          return {
+            message: `Qo'shildi: ${text}\nYana til tanlang yoki "🟢 Tanlashni yakunlash" tugmasini bosing.`,
+            keyboard: this.languageKeyboard,
+          };
+        }
+
+        if (text === '🟢 Tanlashni yakunlash') {
+          if (state.answers[9].length === 0) {
+            return {
+              message: '❗ Iltimos, kamida bitta tilni tanlang:',
+              keyboard: this.languageKeyboard,
+            };
+          }
+
+          state.step = 10;
+          this.setUserState(chatId, state);
+          return {
+            message: this.questions[9],
+            keyboard: { remove_keyboard: true },
+          };
+        }
+
+        const validLanguages = this.languageKeyboard.keyboard.flat();
+        if (validLanguages.includes(text)) {
+          if (state.answers[9].includes(text)) {
+            state.answers[9] = state.answers[9].filter(
+              (i: string) => i !== text,
+            );
+            return {
+              message: `O'chirildi: ${text}\nTanlangan tillar: ${state.answers[9].join(', ') || "Yo'q"}`,
+              keyboard: this.languageKeyboard,
+            };
+          } else {
+            state.answers[9].push(text);
+            return {
+              message: `Tanlandi: ${text}\nTanlangan tillar: ${state.answers[9].join(', ')}`,
+              keyboard: this.languageKeyboard,
+            };
+          }
+        }
+
+        return {
+          message: '❗ Iltimos, tugmalardan foydalaning.',
+          keyboard: this.languageKeyboard,
+        };
+      }
+
+      return {
+        message: this.questions[8],
+        keyboard: this.languageKeyboard,
+      };
+    }
+
+    // === STEP 10 — PORTFOLIO ===
+    if (step === 10) {
+      if ('text' in msg && msg.text) {
+        state.answers[10] = msg.text;
+        state.step = 11;
+        this.setUserState(chatId, state);
+        return {
+          message: this.questions[10],
+          keyboard: { remove_keyboard: true },
+        };
+      }
+    }
+
+    // === STEP 11 — KONIKMALAR ===
+    if (step === 11) {
+      if ('text' in msg && msg.text) {
+        state.answers[11] = msg.text;
+        state.step = 12;
+        this.setUserState(chatId, state);
+        return {
+          message: this.questions[11],
+          keyboard: { remove_keyboard: true },
+        };
+      }
+    }
+
+    // === STEP 12 — TELEFON ===
+    if (step === 12) {
+      let phone = '';
+
+      if ('contact' in msg && msg.contact) {
+        phone = msg.contact.phone_number;
+      } else if ('text' in msg && msg.text) {
+        phone = msg.text;
+      }
+
+      if (phone) {
+        const validation = this.validatePhoneNumber(phone);
+        if (!validation.isValid) {
+          return {
+            message: validation.message!,
+            keyboard: this.phoneKeyboard,
+          };
+        }
+
+        state.answers[12] = this.formatPhone(phone);
+        state.step = 13;
+        this.setUserState(chatId, state);
+
+        return {
+          message: this.questions[12],
+          keyboard: { remove_keyboard: true },
+        };
+      }
+
+      return {
+        message: this.questions[11],
+        keyboard: this.phoneKeyboard,
+      };
+    }
+
+    // === STEP 13 — USERNAME ===
+    if (step === 13) {
+      if ('text' in msg && msg.text) {
+        const username = msg.text.trim();
+
+        if (!username.startsWith('@')) {
+          return {
+            message:
+              '❗ Iltimos, username @ belgisi bilan boshlansin. Masalan: @username\nQaytadan kiriting:',
+            keyboard: { remove_keyboard: true },
+          };
+        }
+
+        if (username.length < 2) {
+          return {
+            message:
+              '❗ Iltimos, toʻgʻri username kiriting. Masalan: @username\nQaytadan kiriting:',
+            keyboard: { remove_keyboard: true },
+          };
+        }
+
+        state.answers[13] = username;
+        this.setUserState(chatId, state);
+
+        return {
+          confirmation: true,
+          answers: state.answers,
+          gender: state.gender,
+        };
+      }
+
+      return {
+        message: this.questions[12],
+        keyboard: { remove_keyboard: true },
+      };
+    }
+
+    return null;
+  }
+
+  // ===== YORDAMCHI FUNKSIYALAR =====
+  private formatPhone(phone: string): string {
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('998') && cleaned.length === 12) {
+      return `+${cleaned}`;
+    }
+    if (cleaned.startsWith('+998') && cleaned.length === 13) {
+      return cleaned;
+    }
+    return phone;
   }
 
   // ===== IMAGE GENERATOR =====
@@ -241,7 +571,6 @@ ${data[13] || ''}
     return { imagePath: fileName, caption };
   }
 
-  // ===== ESKI METODNI SAQLASH (compatibility uchun) =====
   async handleAnswer(chatId: string, msg: any) {
     return this.handleUserAnswer(chatId, msg);
   }
