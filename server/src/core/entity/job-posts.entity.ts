@@ -1,11 +1,13 @@
 import { BaseEntity } from 'src/common/database/BaseEntity';
 import { Level, Post_Status, Post_Type, Work_Format } from 'src/common/enums';
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { SubCategoryEntity } from './sub-category.entity';
+import { UserEntity } from './user.entity';
 
 @Entity('job-posts')
 export class JobPostsEntity extends BaseEntity {
   @Column({ type: 'uuid' })
-  position: string;
+  sub_category_id: string;
 
   @Column({ type: 'varchar' })
   experience: string;
@@ -48,4 +50,12 @@ export class JobPostsEntity extends BaseEntity {
 
   @Column({ type: 'bigint' })
   view_count: number;
+
+  @ManyToOne(() => SubCategoryEntity, (subCategory) => subCategory.job_posts)
+  @JoinColumn({ name: 'sub_category_id' })
+  subCategory: SubCategoryEntity;
+
+  @ManyToOne(() => UserEntity, (user) => user.job_posts)
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
 }
