@@ -23,8 +23,10 @@ export enum Work_Format {
 }
 
 export enum Post_Status {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  DELETED = 'deleted',
 }
 
 export enum Post_Type {
