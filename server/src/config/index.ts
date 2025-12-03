@@ -7,9 +7,11 @@ export default {
   PROD_HOST: String(process.env.PROD_HOST),
   DB_URL: String(process.env.DB_URL),
   HOST_URL: String(process.env.HOST_URL),
+
   ADMIN_NAME: String(process.env.SUPERADMIN_NAME),
   ADMIN_PHONE_NUMBER: String(process.env.SUPERADMIN_PHONE_NUMBER),
   ADMIN_PASSWORD: String(process.env.SUPERADMIN_PASSWORD),
+  ADMIN_TELEGRAM_ID: String(process.env.SUPERADMIN_TELEGRAM_ID),
 
   ACCESS_TOKEN_KEY: String(process.env.ACCESS_TOKEN_KEY),
   ACCESS_TOKEN_TIME: String(process.env.ACCESS_TOKEN_TIME),
@@ -18,9 +20,5 @@ export default {
 
   BOT_TOKEN: String(process.env.BOT_TOKEN),
   BOT_NAME: String(process.env.BOT_NAME),
-  ORDER_BOT_TOKEN: String(process.env.ORDER_BOT_TOKEN),
-  ORDER_BOT_NAME: String(process.env.ORDER_BOT_NAME),
-  NGROK_AUTHTOKEN: String(process.env.NGROK_AUTHTOKEN),
-  PRINTER_LOCAL_URL: String(process.env.PRINTER_LOCAL_URL),
   UPLOAD_URL: String(process.env.UPLOAD_URL),
 };

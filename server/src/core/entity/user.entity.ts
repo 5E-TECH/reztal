@@ -22,8 +22,8 @@ export class UserEntity extends BaseEntity {
   @Column({ type: 'enum', enum: User_Status })
   status: User_Status;
 
-  @Column({ type: 'bigint' })
-  telegram_id: bigint;
+  @Column({ type: 'varchar' })
+  telegram_id: string;
 
   @Column({ type: 'boolean', nullable: true })
   see_vacancy: boolean;

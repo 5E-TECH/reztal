@@ -1,11 +1,14 @@
 import { BaseEntity } from 'src/common/database/BaseEntity';
 import { Level, Post_Status, Post_Type, Work_Format } from 'src/common/enums';
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, Generated, JoinColumn, ManyToOne } from 'typeorm';
 import { SubCategoryEntity } from './sub-category.entity';
 import { UserEntity } from './user.entity';
 
 @Entity('job-posts')
 export class JobPostsEntity extends BaseEntity {
+  @Column({ type: 'bigint', generated: 'increment' })
+  post_id: string;
+
   @Column({ type: 'uuid' })
   sub_category_id: string;
 
@@ -42,7 +45,7 @@ export class JobPostsEntity extends BaseEntity {
   @Column({ type: 'uuid' })
   user_id: string;
 
-  @Column({ type: 'enum', enum: Post_Status, default: Post_Status.ACTIVE })
+  @Column({ type: 'enum', enum: Post_Status, default: Post_Status.PENDING })
   post_status: Post_Status;
 
   @Column({ type: 'enum', enum: Post_Type })
