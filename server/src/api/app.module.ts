@@ -7,6 +7,8 @@ import { BotVacancyService } from './bot/bot-vacancy/bot.service';
 import { UserModule } from './user/user.module';
 import config from 'src/config';
 import { LoggerModule } from 'src/logger/logger.module';
+import { JobPostsModule } from './job-posts/job-posts.module';
+import { JobCategoriesModule } from './job-categories/job-categories.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { LoggerModule } from 'src/logger/logger.module';
     }),
     UserModule,
     LoggerModule,
+    JobPostsModule,
+    JobCategoriesModule,
   ],
   providers: [BotAdminService, BotService, BotMainUpdate, BotVacancyService], // providerlar shu modulda bo'lishi kerak
 })
