@@ -2,110 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { createCanvas, loadImage } from 'canvas';
 import * as fs from 'fs';
 import * as path from 'path';
+import { I18nService, Language } from '../../../i18n/i18n.service';
 
 @Injectable()
 export class BotVacancyService {
   private employerStates = new Map<string, any>();
 
-  // ===== SAVOLLAR RO'YXATI =====
-  questions = [
-    '1. Kasb nomi?',
-    '2. Kompaniya nomi?',
-    '3. Hudud?',
-    '4. Ish turi?',
-    '5. Maosh?',
-    '6. Talablar?',
-    '7. Telegram username?',
-    '8. Telefon raqam?',
-  ];
+  constructor(private i18nService: I18nService) {}
 
-  // ===== KEYBOARD LAR =====
-  regionsKeyboard = {
-    keyboard: [
-      ['Toshkent shahri', 'Toshkent viloyati'],
-      ['Andijon', "Farg'ona", 'Namangan'],
-      ['Samarqand', 'Buxoro', 'Xorazm'],
-      ['Qashqadaryo', 'Surxondaryo'],
-      ['Jizzax', 'Sirdaryo', 'Navoiy'],
-      ["Qoraqalpog'iston"],
-    ],
-    resize_keyboard: true,
-    one_time_keyboard: true,
-  };
-
-  workTypeKeyboard = {
-    keyboard: [['Offline', 'Online'], ['Gibrid']],
-    resize_keyboard: true,
-    one_time_keyboard: true,
-  };
-
-  phoneKeyboard = {
-    keyboard: [[{ text: '📞 Raqamni ulashish', request_contact: true }]],
-    resize_keyboard: true,
-    one_time_keyboard: true,
-  };
-
-  // ===== TELEFON RAQAM VALIDATSIYASI =====
-  public validatePhoneNumber(phone: string): {
-    isValid: boolean;
-    message?: string;
-  } {
-    if (!phone) {
-      return {
-        isValid: false,
-        message: '❗ Iltimos, telefon raqamingizni kiriting.',
-      };
-    }
-
-    // Bo'sh joylarni olib tashlash
-    const cleaned = phone.replace(/\s/g, '');
-
-    // Aniq 13 ta belgi va +998XXXXXXXXX formatini tekshirish
-    if (cleaned.length !== 13) {
-      return {
-        isValid: false,
-        message: `❗ Telefon raqami aniq 13 ta belgidan iborat bo'lishi kerak.\n\nSiz kiritgan raqam ${cleaned.length} ta belgidan iborat.\n\n✅ To'g'ri format: +998901234567`,
-      };
-    }
-
-    // +998 bilan boshlanishini tekshirish
-    if (!cleaned.startsWith('+998')) {
-      return {
-        isValid: false,
-        message:
-          "❗ Telefon raqami +998 bilan boshlanishi kerak.\n\n✅ To'g'ri format: +998901234567",
-      };
-    }
-
-    // Faqat raqamlar va + belgisini tekshirish
-    const phoneRegex = /^\+998\d{9}$/;
-    if (!phoneRegex.test(cleaned)) {
-      return {
-        isValid: false,
-        message:
-          "❗ Iltimos, toʻgʻri Oʻzbekiston telefon raqamini kiriting.\n\n✅ To'g'ri format: +998901234567\n\n❗ Faqat raqamlar va + belgisi qabul qilinadi.",
-      };
-    }
-
-    return { isValid: true };
-  }
-
-  // ===== TELEFON RAQAMNI TOZALASH =====
-  private cleanPhoneNumber(phone: string): string {
-    if (!phone) return '';
-
-    // 1. Barcha bo'sh joylarni olib tashlash
-    let cleaned = phone.replace(/\s/g, '');
-
-    // 2. Agar + belgisi yo'q bo'lsa, qo'shamiz
-    if (cleaned.startsWith('+998')) {
-      return cleaned
-    }
-
-    return cleaned;
-  }
-
-  // ===== STATE MANAGEMENT =====
   getEmployerState(id: string) {
     return this.employerStates.get(id);
   }
@@ -118,98 +22,182 @@ export class BotVacancyService {
     this.employerStates.delete(id);
   }
 
-  // ===== KOLLEKSIYANI BOSHLASH =====
-  async startEmployerCollection(chatId: string): Promise<string> {
+  // Savollarni olish
+  getQuestions(lang: Language): string[] {
+    return this.i18nService.getQuestions(lang, 'vacancy');
+  }
+
+  // Keyboardlarni olish
+  getKeyboard(lang: Language, type: string): any {
+    return this.i18nService.getKeyboard(lang, type);
+  }
+
+  // Validatsiya funksiyasi
+  validatePhoneNumber(phone: string): {
+    isValid: boolean;
+    message?: string;
+  } {
+    if (!phone) {
+      return {
+        isValid: false,
+        message: 'errors.required',
+      };
+    }
+
+    const cleaned = phone.replace(/\s/g, '');
+
+    if (cleaned.length !== 13) {
+      return {
+        isValid: false,
+        message: 'errors.phone_invalid',
+      };
+    }
+
+    if (!cleaned.startsWith('+998')) {
+      return {
+        isValid: false,
+        message: 'errors.phone_invalid',
+      };
+    }
+
+    const phoneRegex = /^\+998\d{9}$/;
+    if (!phoneRegex.test(cleaned)) {
+      return {
+        isValid: false,
+        message: 'errors.phone_invalid',
+      };
+    }
+
+    return { isValid: true };
+  }
+
+  // Telefonni formatlash
+  private cleanPhoneNumber(phone: string): string {
+    if (!phone) return '';
+
+    let cleaned = phone.replace(/\s/g, '');
+
+    if (cleaned.startsWith('+998')) {
+      return cleaned;
+    }
+
+    if (cleaned.startsWith('998') && cleaned.length === 12) {
+      return `+${cleaned}`;
+    }
+
+    return cleaned;
+  }
+
+  // Start collection
+  async startEmployerCollection(
+    chatId: string,
+    lang: Language,
+  ): Promise<string> {
     this.employerStates.set(chatId, {
       step: 1,
       answers: {},
       type: 'employer',
+      lang: lang,
     });
-    return this.questions[0];
+
+    const questions = this.getQuestions(lang);
+    return questions[0];
   }
 
-  // ===== JAVOBLARNI QAYTA ISHLASH =====
+  // Handle employer answer
   async handleEmployerAnswer(chatId: string, msg: any) {
     const state = this.employerStates.get(chatId);
     if (!state) return null;
 
     const step = state.step;
+    const lang: Language = state.lang || 'uz';
+    const questions = this.getQuestions(lang);
 
-    // ===== 8-QADAM — TELEFON RAQAM (MAXSUS ISHLOV) =====
+    // STEP 8 - Phone (special handling)
     if (step === 8) {
       let phone = '';
 
-      // Kontakt orqali
       if ('contact' in msg && msg.contact) {
         phone = msg.contact.phone_number;
-      }
-      // Matn orqali
-      else if ('text' in msg && msg.text) {
+      } else if ('text' in msg && msg.text) {
         phone = msg.text;
       }
 
       if (phone) {
-        // Telefon raqamini tozalash
         const cleanedPhone = this.cleanPhoneNumber(phone);
-
-        // Telefon raqamini validatsiya qilish
         const validation = this.validatePhoneNumber(cleanedPhone);
+
         if (!validation.isValid) {
-          return validation.message; // Xato xabarini qaytarish
+          return {
+            message: validation.message!,
+            keyboard: this.getKeyboard(lang, 'phone'),
+          };
         }
 
         state.answers[8] = cleanedPhone;
-        state.step = 9; // Keyingi qadam
+        state.step = 9;
 
-        // Confirmation uchun maxsus signal qaytaramiz
-        return { confirmation: true, answers: state.answers };
+        return {
+          confirmation: true,
+          answers: state.answers,
+        };
       }
 
-      // Telefon kiritilmagan bo'lsa, keyboard qaytaramiz
-      return 'step8';
+      return {
+        message: 'errors.phone_invalid',
+        keyboard: this.getKeyboard(lang, 'phone'),
+      };
     }
 
-    // ===== QOLGAN QADAMLAR =====
-    // Matn javoblarini qabul qilish
+    // Text answers
     if ('text' in msg) {
       state.answers[step] = msg.text;
     } else {
       return null;
     }
 
-    // Keyingi qadamga o'tish
     state.step++;
 
-    // ===== MAXSUS QADAMLAR =====
+    // Special steps with keyboards
     if (state.step === 3) {
-      return 'step3'; // Hudud keyboardi uchun
+      return {
+        message: questions[2],
+        keyboard: this.getKeyboard(lang, 'regions'),
+      };
     }
 
     if (state.step === 4) {
-      return 'step4'; // Ish turi keyboardi uchun
+      return {
+        message: questions[3],
+        keyboard: this.getKeyboard(lang, 'work_types'),
+      };
     }
 
     if (state.step === 8) {
-      return 'step8'; // Telefon keyboardi uchun
+      return {
+        message: questions[7],
+        keyboard: this.getKeyboard(lang, 'phone'),
+      };
     }
 
-    // ===== YAKUNLASH =====
-    if (state.step > this.questions.length) {
-      // Confirmation uchun maxsus signal qaytaramiz
-      return { confirmation: true, answers: state.answers };
+    // Completion
+    if (state.step > questions.length) {
+      return {
+        confirmation: true,
+        answers: state.answers,
+      };
     }
 
-    return this.questions[state.step - 1];
+    return { message: questions[state.step - 1] };
   }
 
-  // ===== RASM GENERATORI =====
-  async generateEmployerImage(data: any) {
+  // Generate vacancy image
+  async generateVacancyImage(data: any) {
     const uploadsDir = path.resolve(process.cwd(), 'src', 'uploads');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    // Employer uchun template (siz yaratasiz)
     const templatePath = path.join(uploadsDir, 'employer_template.png');
     const img = await loadImage(templatePath);
     const canvas = createCanvas(img.width, img.height);
@@ -217,7 +205,6 @@ export class BotVacancyService {
 
     ctx.drawImage(img, 0, 0);
 
-    // Ma'lumotlarni olish
     const job = data[1] || '';
     const company = data[2] || '';
     const region = data[3] || '';
@@ -227,7 +214,6 @@ export class BotVacancyService {
     const username = data[7] || '';
     const phone = data[8] || '';
 
-    // Matnlarni chizish (koordinatalarni o'zingiz moslashtiring)
     ctx.fillStyle = '#000';
     ctx.font = 'bold 80px Sans';
     ctx.fillText(job, 700, 600);
@@ -264,11 +250,5 @@ export class BotVacancyService {
 `;
 
     return { imagePath: fileName, caption };
-  }
-
-  // ===== YANGI METOD: generateVacancyImage =====
-  async generateVacancyImage(data: any) {
-    // generateEmployerImage metodini chaqiramiz, chunki ular bir xil ishni bajaradi
-    return this.generateEmployerImage(data);
   }
 }

@@ -1,0 +1,140 @@
+{
+  "welcome": "🚀 Botga xush kelibsiz!\nQuyidagilardan birini tanlang:",
+  "choose_language": "🇺🇿🇷🇺🇺🇸 Iltimos, tilni tanlang:",
+  "language_selected": "✅ Til tanlandi",
+  "rezume": "🧑‍💻 Ish kerak",
+  "vacancy": "🏢 Xodim kerak",
+  "confirmation": "✅ Tasdiqlash",
+  "edit": "✏️ Tahrirlash",
+  "back": "🔙 Orqaga",
+  "submit": "📤 Yuborish",
+  "cancel": "❌ Bekor qilish",
+  "main_menu": "🏠 Asosiy menyu",
+  "admin_panel": "👑 Admin Panel",
+  "pending_posts": "📋 Tasdiqlash kutilmoqda",
+  "statistics": "📊 Statistika",
+  "admins": "👥 Adminlar",
+  "add_admin": "➕ Admin qo'shish",
+  "back_to_main": "🔙 Asosiy menyu",
+  "change_language": "🌐 Tilni o'zgartirish",
+  "unknown": "Noma'lum",
+  "user": "Foydalanuvchi",
+  "date": "Sana",
+  "phone": "Telefon",
+  "username": "Username",
+  "not_provided": "Ko'rsatilmagan",
+  "joined": "Qo'shilgan",
+  
+  "rezume_questions": [
+    "1. Kasbingiz nima?",
+    "2. Rezyumengizni PDF ko'rinishida yuboring.",
+    "3. Tajribangiz qancha?",
+    "4. Qancha maosh so'raysiz?",
+    "5. Ismingiz?",
+    "6. Yoshingiz?",
+    "7. Jinsingizni tanlang:",
+    "8. Yashash joyingizni tanlang:",
+    "9. Til bilimingizni tanlang:",
+    "10. Portfolio (agar bo'lsa)?",
+    "11. Sohangizga aloqador ko'nikmalar?",
+    "12. Telefon raqamingiz?",
+    "13. Telegram username?"
+  ],
+  
+  "vacancy_questions": [
+    "1. Kasb nomi?",
+    "2. Kompaniya nomi?",
+    "3. Hudud?",
+    "4. Ish turi?",
+    "5. Maosh?",
+    "6. Talablar?",
+    "7. Telegram username?",
+    "8. Telefon raqam?"
+  ],
+  
+  "gender": {
+    "male": "Erkak",
+    "female": "Ayol"
+  },
+  
+  "regions": [
+    ["Toshkent shahri", "Toshkent viloyati"],
+    ["Andijon", "Farg'ona", "Namangan"],
+    ["Samarqand", "Buxoro", "Xorazm"],
+    ["Qashqadaryo", "Surxondaryo"],
+    ["Jizzax", "Sirdaryo", "Navoiy"],
+    ["Qoraqalpog'iston"]
+  ],
+  
+  "languages": ["O'zbek", "Rus", "Ingliz", "Koreys", "Boshqa", "🟢 Tanlashni yakunlash"],
+  
+  "work_types": ["Offline", "Online", "Gibrid"],
+  
+  "phone_request": "📞 Raqamni ulashish",
+  
+  "post_status": {
+    "pending": "⏳ Tasdiqlash kutilmoqda",
+    "approved": "✅ Tasdiqlangan",
+    "rejected": "❌ Rad etilgan"
+  },
+  
+  "errors": {
+    "phone_invalid": "❗ Iltimos, telefon raqamingizni +998xxxxxxxxx shaklida kiriting\n\nMisol: +998901234567",
+    "username_invalid": "❗ Iltimos, username @ belgisi bilan boshlansin\n\nMisol: @username",
+    "salary_invalid": "❗ Iltimos, to'g'ri maosh miqdorini kiriting",
+    "required": "❗ Iltimos, bu maydonni to'ldiring",
+    "pdf_required": "❗ Iltimos, rezyumeni PDF shaklda yuboring",
+    "region_invalid": "❗ Iltimos, hududni tugmalardan tanlang",
+    "work_type_invalid": "❗ Iltimos, ish turini tugmalardan tanlang",
+    "language_invalid": "❗ Iltimos, kamida bitta tilni tanlang",
+    "gender_invalid": "❗ Iltimos, jinsingizni tanlang"
+  },
+  
+  "success": {
+    "post_created": "📝 Postingiz yaratildi! Admin tasdiqlagach kanalga joylanadi.",
+    "post_approved": "🎉 Postingiz tasdiqlandi va kanalga joylandi!",
+    "post_rejected": "❌ Postingiz rad etildi",
+    "admin_added": "✅ Yangi admin qo'shildi",
+    "admin_removed": "✅ Adminlikdan olindi",
+    "post_edited": "✅ Post tahrirlandi",
+    "post_deleted": "✅ Post o'chirildi"
+  },
+  
+  "confirmation_messages": {
+    "rezume_preview": "📋 **Ma'lumotlaringizni tekshiring:**\n\n🧑‍💼 Kasb: {{job}}\n📊 Tajriba: {{experience}}\n💰 Maosh: {{salary}}\n👤 Ism: {{name}}\n🎂 Yosh: {{age}}\n⚧ Jins: {{gender}}\n📍 Hudud: {{region}}\n🌐 Tillar: {{languages}}\n📁 Portfolio: {{portfolio}}\n💼 Ko'nikmalar: {{skills}}\n📞 Telefon: {{phone}}\n👤 Username: {{username}}\n\n*Ma'lumotlaringiz to'g'rimi?*",
+    "vacancy_preview": "📋 **Vakansiya ma'lumotlari:**\n\n💼 Kasb: {{job}}\n🏢 Kompaniya: {{company}}\n📍 Hudud: {{region}}\n🖥️ Ish turi: {{workType}}\n💰 Maosh: {{salary}}\n📋 Talablar: {{requirements}}\n👤 Username: {{username}}\n📞 Telefon: {{phone}}\n\n*Ma'lumotlar to'g'rimi?*",
+    "rezume_submitted": "📝 Postingiz yaratildi! Admin tasdiqlagach kanalga joylanadi.\n\n⏳ Holat: **Tasdiqlash kutilmoqda**\n🔢 Post ID: {{postId}}",
+    "vacancy_submitted": "📝 Vakansiya postingiz yaratildi! Admin tasdiqlagach kanalga joylanadi.\n\n⏳ Holat: **Tasdiqlash kutilmoqda**\n🔢 Post ID: {{postId}}"
+  },
+  
+  "admin": {
+    "no_pending_posts": "✅ Tasdiqlash kutilayotgan postlar yo'q.",
+    "pending_posts_list": "⏳ Tasdiqlash kutilayotgan postlar:\n\n",
+    "statistics": "📊 Statistika:\n\n👥 Jami foydalanuvchilar: {{totalUsers}}\n📝 Jami postlar: {{totalPosts}}\n⏳ Kutilayotgan: {{pendingPosts}}\n✅ Tasdiqlangan: {{approvedPosts}}\n❌ Rad etilgan: {{rejectedPosts}}\n🧑‍💻 Rezyume: {{rezumePosts}}\n🏢 Vakansiya: {{vacancyPosts}}",
+    "admins_list": "👥 Adminlar ro'yxati:\n\n",
+    "add_admin_instructions": "Yangi admin ma'lumotlarini kiriting:\n\nFormat: telefon_raqam username\n\nMisol: +998901234567 username",
+    "edit_post_instructions": "✏️ Postni tahrirlash (ID: {{postId}})\n\nQuyidagi formatda tahrirlang:\nfield_number: yangi qiymat\n\nMasalan: 1: Frontend Developer\nYoki: 5: 5 000 000\n\nField raqamlari:\n{{fields}}",
+    "reject_reason_prompt": "Post #{{postId}} ni rad etish sababini kiriting:",
+    "post_approved_success": "✅ Post tasdiqlandi va kanalga joylandi!",
+    "post_rejected_success": "✅ Post rad etildi va foydalanuvchiga xabar yuborildi!",
+    "post_edited_success": "✅ Post #{{postId}} ning {{field}}-maydoni yangilandi!\nYangi qiymat: {{value}}",
+    "admin_added_success": "✅ @{{username}} admin sifatida qo'shildi!",
+    "admin_removed_success": "✅ @{{username}} adminlikdan olindi!",
+    "admin_exists": "❌ Bu admin allaqachon mavjud!",
+    "admin_not_found": "❌ Admin topilmadi!",
+    "last_admin": "❌ Oxirgi adminni o'chirish mumkin emas!",
+    "post_not_found": "❌ Post topilmadi!"
+  },
+  
+  "edit_fields": {
+    "rezume": "1: Kasb, 2: Tajriba, 3: Maosh, 4: Ism, 5: Yosh, 6: Jins, 7: Hudud, 8: Tillar, 9: Portfolio, 10: Ko'nikmalar, 11: Telefon, 12: Username",
+    "vacancy": "1: Kasb, 2: Kompaniya, 3: Hudud, 4: Ish turi, 5: Maosh, 6: Talablar, 7: Username, 8: Telefon"
+  },
+  
+  "edit_prompt": "✏️ Qaysi maydonni tahrirlamoqchisiz?",
+  "enter_new_value": "Yangi qiymatni kiriting:",
+  "select_from_list": "Quyidagilardan birini tanlang:",
+  "finish_editing": "✅ Tahrirlashni yakunlash",
+  "add_another": "➕ Boshqa qo'shish",
+  "done": "🟢 Tayyor"
+}
