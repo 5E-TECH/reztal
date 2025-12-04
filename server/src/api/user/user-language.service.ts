@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Language } from '../../i18n/i18n.service';
+import { Language } from 'src/common/enums';
+// import { Language } from '../../i18n/i18n.service';
 
 @Injectable()
 export class UserLanguageService {
@@ -10,7 +11,7 @@ export class UserLanguageService {
   }
 
   getUserLanguage(userId: string): Language {
-    return this.userLanguages.get(userId) || 'uz';
+    return this.userLanguages.get(userId) || Language.UZ;
   }
 
   deleteUserLanguage(userId: string): void {

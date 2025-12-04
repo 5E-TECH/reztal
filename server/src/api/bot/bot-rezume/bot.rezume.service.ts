@@ -2,12 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { createCanvas, loadImage } from 'canvas';
 import * as fs from 'fs';
 import * as path from 'path';
-import { I18nService, Language } from '../../../i18n/i18n.service';
+import { I18nService } from '../../../i18n/i18n.service';
 import { UserService } from 'src/api/user/user.service';
 import { JobPostsService } from 'src/api/job-posts/job-posts.service';
 import { JobCategoriesService } from 'src/api/job-categories/job-categories.service';
 import { keyboard } from 'telegraf/markup';
 import { MyLogger } from 'src/logger/logger.service';
+import { Language } from 'src/common/enums';
 
 @Injectable()
 export class BotRezumeService {
@@ -131,17 +132,39 @@ export class BotRezumeService {
     if (!state) return null;
 
     const step = state.step;
-    const lang: Language = state.lang || 'uz';
+    let lang: Language = Language.UZ;
+    if (state.lang === 'en') {
+      lang = Language.EN;
+    }
+    if (state.lang === 'ru') {
+      lang = Language.RU;
+    }
+
     const questions = this.getQuestions(lang);
 
     // STEP 1 - Profession
     if (step === 1) {
       if ('text' in msg && msg.text) {
         this.logger.log('Message: ', msg.text);
-        const categories = await this.categoryService.allCategories();
+        let currentLang;
+        if (lang === 'uz') {
+          currentLang = Language;
+        }
+        const categories =
+          await this.categoryService.allTranslatedCategories(lang);
+
+        if (!categories) {
+          return 'Categoryies not found';
+        }
+
         this.logger.log('Categories', categories.message);
         const keyboard = {
-          keyboard: [...categories.data.map((cat) => [cat.name])],
+          keyboard: [
+            ...categories.data.map((cat) => {
+              console.log(cat);
+              return [cat.name];
+            }),
+          ],
           resize_keyboard: true,
         };
 

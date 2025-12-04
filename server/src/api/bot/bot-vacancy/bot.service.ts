@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { createCanvas, loadImage } from 'canvas';
 import * as fs from 'fs';
 import * as path from 'path';
-import { I18nService, Language } from '../../../i18n/i18n.service';
+import { I18nService } from '../../../i18n/i18n.service';
+import { Language } from 'src/common/enums';
 
 @Injectable()
 export class BotVacancyService {
