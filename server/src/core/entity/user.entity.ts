@@ -19,7 +19,7 @@ export class UserEntity extends BaseEntity {
   @Column({ type: 'enum', enum: Roles })
   role: Roles;
 
-  @Column({ type: 'enum', enum: User_Status })
+  @Column({ type: 'enum', enum: User_Status, default: User_Status.ACTIVE })
   status: User_Status;
 
   @Column({ type: 'varchar' })
