@@ -2,10 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { createCanvas, loadImage } from 'canvas';
 import * as fs from 'fs';
 import * as path from 'path';
+import { I18nService, Language } from '../../../i18n/i18n.service';
 
 @Injectable()
-export class BotService {
+export class BotRezumeService {
   private userStates = new Map<string, any>();
+
+  constructor(private i18nService: I18nService) {}
 
   getUserState(id: string) {
     return this.userStates.get(id);
@@ -19,51 +22,25 @@ export class BotService {
     this.userStates.delete(id);
   }
 
-  // ===== KEYBOARDS =====
-  genderKeyboard = {
-    keyboard: [['Erkak', 'Ayol']],
-    resize_keyboard: true,
-    one_time_keyboard: true,
-  };
+  // Savollarni olish
+  getQuestions(lang: Language): string[] {
+    return this.i18nService.getQuestions(lang, 'rezume');
+  }
 
-  regionsKeyboard = {
-    keyboard: [
-      ['Toshkent shahri', 'Toshkent viloyati'],
-      ['Andijon', "Farg'ona", 'Namangan'],
-      ['Samarqand', 'Buxoro', 'Xorazm'],
-      ['Qashqadaryo', 'Surxondaryo'],
-      ['Jizzax', 'Sirdaryo', 'Navoiy'],
-      ["Qoraqalpog'iston"],
-    ],
-    resize_keyboard: true,
-    one_time_keyboard: true,
-  };
+  // Keyboardlarni olish
+  getKeyboard(lang: Language, type: string): any {
+    return this.i18nService.getKeyboard(lang, type);
+  }
 
-  languageKeyboard = {
-    keyboard: [
-      ['O‘zbek', 'Rus'],
-      ['Ingliz', 'Koreys'],
-      ['Boshqa'],
-      ['🟢 Tanlashni yakunlash'],
-    ],
-    resize_keyboard: true,
-  };
-
-  phoneKeyboard = {
-    keyboard: [[{ text: '📞 Raqamni ulashish', request_contact: true }]],
-    resize_keyboard: true,
-    one_time_keyboard: true,
-  };
-
-  // ===== TELEFON RAQAM VALIDATSIYASI =====
-  public validatePhoneNumber(phone: string): {
+  // Validatsiya funksiyasi
+  validatePhoneNumber(phone: string): {
     isValid: boolean;
     message?: string;
   } {
     if (!phone) {
       return {
         isValid: false,
-        message: '❗ Iltimos, telefon raqamingizni kiriting.',
+        message: 'errors.required',
       };
     }
 
@@ -72,59 +49,24 @@ export class BotService {
       ? cleaned
       : cleaned.replace(/^\+?/, '');
 
-    if (numbersOnly.length !== 12) {
+    if (numbersOnly.length !== 13) {
       return {
         isValid: false,
-        message:
-          '❗ Iltimos, toʻgʻri Oʻzbekiston telefon raqamini kiriting (12 ta raqam).\n\n' +
-          'Misol: +998901234567 yoki 998901234567\n' +
-          'Contact yuborsangiz ham qabul qilinadi.',
+        message: 'errors.phone_invalid',
       };
     }
 
     if (!numbersOnly.startsWith('998')) {
       return {
         isValid: false,
-        message:
-          '❗ Telefon raqami 998 bilan boshlanishi kerak.\n\n' +
-          'Misol: +998901234567\n' +
-          'Yoki: 998901234567',
-      };
-    }
-
-    const operatorCode = numbersOnly.substring(3, 5);
-    const validOperatorCodes = [
-      '90',
-      '91',
-      '93',
-      '94',
-      '95',
-      '97',
-      '98',
-      '99',
-      '77',
-      '88',
-    ];
-
-    if (!validOperatorCodes.includes(operatorCode)) {
-      return {
-        isValid: false,
-        message:
-          '❗ Notoʻgʻri operator kodi. Oʻzbekistonda quyidagi operatorlar mavjud:\n' +
-          '• Ucell: 93, 94\n' +
-          '• Beeline: 90, 91\n' +
-          '• Uzmobile: 95\n' +
-          '• Mobiuz: 97\n' +
-          '• Perfectum: 98\n' +
-          '• Humans: 33\n' +
-          'Iltimos, toʻgʻri raqam kiriting.',
+        message: 'errors.phone_invalid',
       };
     }
 
     return { isValid: true };
   }
 
-  // ===== TELEFON RAQAMNI FORMATLASH =====
+  // Formatlash funksiyasi
   private formatPhoneNumber(phone: string): string {
     const cleaned = phone.replace(/\D/g, '');
 
@@ -143,173 +85,144 @@ export class BotService {
     return phone;
   }
 
-  // ===== QUESTIONS =====
-  questions = [
-    '1. Kasbingiz nima?',
-    "2. Rezyumengizni PDF ko'rinishida yuboring.",
-    '3. Tajribangiz qancha?',
-    "4. Qancha maosh so'raysiz?",
-    '5. Ismingiz?',
-    '6. Yoshingiz?',
-    '7. Jinsingizni tanlang:',
-    '8. Yashash joyingizni tanlang:',
-    '9. Til bilimingizni tanlang:',
-    "10. Portfolio (agar bo'lsa)?",
-    "11. Sohangizga aloqador ko'nikmalar?",
-    '12. Telefon raqamingiz?',
-    '13. Telegram username?',
-  ];
-
-  // ===== START STATE - TO'G'RILANGAN =====
-  async startCollection(chatId: string): Promise<string> {
+  // Start collection
+  async startCollection(chatId: string, lang: Language): Promise<string> {
     this.userStates.set(chatId, {
       step: 1,
       answers: {},
       awaitingLanguageText: false,
       gender: null,
+      lang: lang,
     });
 
-    // Faqat birinchi savolni qaytarish kerak, object emas
-    return this.questions[0];
+    const questions = this.getQuestions(lang);
+    return questions[0];
   }
 
-  // ===== MAIN LOGIC =====
+  // Handle user answer
   async handleUserAnswer(chatId: string, msg: any): Promise<any> {
     const state = this.userStates.get(chatId);
     if (!state) return null;
 
     const step = state.step;
+    const lang: Language = state.lang || 'uz';
+    const questions = this.getQuestions(lang);
 
-    console.log('Current step:', step, 'Message:', msg);
-
-    // === STEP 1 — KASB ===
+    // STEP 1 - Profession
     if (step === 1) {
       if ('text' in msg && msg.text) {
         state.answers[1] = msg.text;
         state.step = 2;
-        this.setUserState(chatId, state);
-        // Faqat xabar qaytarish
-        return this.questions[1];
+        return { message: questions[1] };
       }
     }
 
-    // === STEP 2 — PDF ===
+    // STEP 2 - PDF
     if (step === 2) {
       if (!msg.document) {
-        return '❗ Iltimos, rezyumeni PDF shaklda yuboring.';
+        return { message: 'errors.pdf_required' };
       }
 
       const fileName = msg.document.file_name?.toLowerCase() || '';
       const mimeType = msg.document.mime_type || '';
 
       if (!fileName.endsWith('.pdf') && mimeType !== 'application/pdf') {
-        return '❗ Iltimos, faqat PDF formatidagi rezyumeni yuboring.';
+        return { message: 'errors.pdf_required' };
       }
 
       state.answers[2] = 'PDF qabul qilindi';
       state.step = 3;
-      this.setUserState(chatId, state);
-      return this.questions[2];
+      return { message: questions[2] };
     }
 
-    // === STEP 3 — TAJRIBA ===
+    // STEP 3 - Experience
     if (step === 3) {
       if ('text' in msg && msg.text) {
         state.answers[3] = msg.text;
         state.step = 4;
-        this.setUserState(chatId, state);
-        return this.questions[3];
+        return { message: questions[3] };
       }
     }
 
-    // === STEP 4 — MAOSH ===
+    // STEP 4 - Salary
     if (step === 4) {
       if ('text' in msg && msg.text) {
         state.answers[4] = msg.text;
         state.step = 5;
-        this.setUserState(chatId, state);
-        return this.questions[4];
+        return { message: questions[4] };
       }
     }
 
-    // === STEP 5 — ISM ===
+    // STEP 5 - Name
     if (step === 5) {
       if ('text' in msg && msg.text) {
         state.answers[5] = msg.text;
         state.step = 6;
-        this.setUserState(chatId, state);
-        return this.questions[5];
+        return { message: questions[5] };
       }
     }
 
-    // === STEP 6 — YOSH ===
+    // STEP 6 - Age
     if (step === 6) {
       if ('text' in msg && msg.text) {
         state.answers[6] = msg.text;
         state.step = 7;
-        this.setUserState(chatId, state);
-        // Jins tanlash uchun keyboard bilan xabar qaytarish
         return {
-          message: this.questions[6],
-          keyboard: this.genderKeyboard,
+          message: questions[6],
+          keyboard: this.getKeyboard(lang, 'gender'),
         };
       }
     }
 
-    // === STEP 7 — JINS ===
+    // STEP 7 - Gender
     if (step === 7) {
       if ('text' in msg && msg.text) {
         const genderText = msg.text;
-        if (genderText === 'Erkak' || genderText === 'Ayol') {
+        const genderOptions = this.getKeyboard(lang, 'gender').keyboard[0];
+
+        if (genderOptions.includes(genderText)) {
           state.answers[7] = genderText;
-          state.gender = genderText === 'Ayol' ? 'female' : 'male';
+          state.gender =
+            genderText === this.i18nService.t(lang, 'gender.female')
+              ? 'female'
+              : 'male';
           state.step = 8;
-          this.setUserState(chatId, state);
           return {
-            message: this.questions[7],
-            keyboard: this.regionsKeyboard,
+            message: questions[7],
+            keyboard: this.getKeyboard(lang, 'regions'),
           };
         } else {
           return {
-            message: '❗ Iltimos, Erkak yoki Ayol tugmalaridan birini tanlang:',
-            keyboard: this.genderKeyboard,
+            message: 'errors.gender_invalid',
+            keyboard: this.getKeyboard(lang, 'gender'),
           };
         }
       }
-      return {
-        message: this.questions[6],
-        keyboard: this.genderKeyboard,
-      };
     }
 
-    // === STEP 8 — HUDUD ===
+    // STEP 8 - Region
     if (step === 8) {
       if ('text' in msg && msg.text) {
         const region = msg.text;
-        const validRegions = this.regionsKeyboard.keyboard.flat();
+        const regions = this.getKeyboard(lang, 'regions').keyboard.flat();
 
-        if (validRegions.includes(region)) {
+        if (regions.includes(region)) {
           state.answers[8] = region;
           state.step = 9;
-          this.setUserState(chatId, state);
           return {
-            message: this.questions[8],
-            keyboard: this.languageKeyboard,
+            message: questions[8],
+            keyboard: this.getKeyboard(lang, 'languages'),
           };
         } else {
           return {
-            message: '❗ Iltimos, yashash joyingizni tugmalardan tanlang:',
-            keyboard: this.regionsKeyboard,
+            message: 'errors.region_invalid',
+            keyboard: this.getKeyboard(lang, 'regions'),
           };
         }
       }
-      return {
-        message: this.questions[7],
-        keyboard: this.regionsKeyboard,
-      };
     }
 
-    // === STEP 9 — TILLAR ===
+    // STEP 9 - Languages
     if (step === 9) {
       if ('text' in msg && msg.text) {
         const text = msg.text;
@@ -318,90 +231,85 @@ export class BotService {
           state.answers[9] = [];
         }
 
-        if (text === 'Boshqa') {
+        if (text === this.i18nService.t(lang, 'languages.4')) {
+          // "Boshqa"/"Other"
           state.awaitingLanguageText = true;
-          return 'Til nomini yozing:';
+          return { message: 'enter_new_value' };
         }
 
         if (state.awaitingLanguageText && text) {
           state.answers[9].push(text);
           state.awaitingLanguageText = false;
-
           return {
-            message: `Qo'shildi: ${text}\nYana til tanlang yoki "🟢 Tanlashni yakunlash" tugmasini bosing.`,
-            keyboard: this.languageKeyboard,
+            message: 'add_another',
+            keyboard: this.getKeyboard(lang, 'languages'),
           };
         }
 
-        if (text === '🟢 Tanlashni yakunlash') {
+        if (text === this.i18nService.t(lang, 'languages.5')) {
+          // "Tanlashni yakunlash"
           if (state.answers[9].length === 0) {
             return {
-              message: '❗ Iltimos, kamida bitta tilni tanlang:',
-              keyboard: this.languageKeyboard,
+              message: 'errors.language_invalid',
+              keyboard: this.getKeyboard(lang, 'languages'),
             };
           }
 
           state.step = 10;
-          this.setUserState(chatId, state);
-          return this.questions[9];
+          return { message: questions[9] };
         }
 
-        const validLanguages = this.languageKeyboard.keyboard.flat();
+        const validLanguages = this.getKeyboard(
+          lang,
+          'languages',
+        ).keyboard.flat();
         if (validLanguages.includes(text)) {
           if (state.answers[9].includes(text)) {
             state.answers[9] = state.answers[9].filter(
               (i: string) => i !== text,
             );
             return {
-              message: `O'chirildi: ${text}\nTanlangan tillar: ${state.answers[9].join(', ') || "Yo'q"}`,
-              keyboard: this.languageKeyboard,
+              message: 'edit_prompt',
+              keyboard: this.getKeyboard(lang, 'languages'),
             };
           } else {
             state.answers[9].push(text);
             return {
-              message: `Tanlandi: ${text}\nTanlangan tillar: ${state.answers[9].join(', ')}`,
-              keyboard: this.languageKeyboard,
+              message: 'select_from_list',
+              keyboard: this.getKeyboard(lang, 'languages'),
             };
           }
         }
 
         return {
-          message: '❗ Iltimos, tugmalardan foydalaning.',
-          keyboard: this.languageKeyboard,
+          message: 'errors.language_invalid',
+          keyboard: this.getKeyboard(lang, 'languages'),
         };
       }
-
-      return {
-        message: this.questions[8],
-        keyboard: this.languageKeyboard,
-      };
     }
 
-    // === STEP 10 — PORTFOLIO ===
+    // STEP 10 - Portfolio
     if (step === 10) {
       if ('text' in msg && msg.text) {
         state.answers[10] = msg.text;
         state.step = 11;
-        this.setUserState(chatId, state);
-        return this.questions[10];
+        return { message: questions[10] };
       }
     }
 
-    // === STEP 11 — KONIKMALAR ===
+    // STEP 11 - Skills
     if (step === 11) {
       if ('text' in msg && msg.text) {
         state.answers[11] = msg.text;
         state.step = 12;
-        this.setUserState(chatId, state);
-        // BU YERDA TELEFON RAQAM UCHUN TUGMA CHIQARAMIZ
         return {
-          message: this.questions[11], // "12. Telefon raqamingiz?"
-          keyboard: this.phoneKeyboard,
+          message: questions[11],
+          keyboard: this.getKeyboard(lang, 'phone'),
         };
       }
     }
 
-    // === STEP 12 — TELEFON ===
+    // STEP 12 - Phone
     if (step === 12) {
       let phone = '';
 
@@ -416,39 +324,35 @@ export class BotService {
         if (!validation.isValid) {
           return {
             message: validation.message!,
-            keyboard: this.phoneKeyboard,
+            keyboard: this.getKeyboard(lang, 'phone'),
           };
         }
 
         state.answers[12] = this.formatPhoneNumber(phone);
         state.step = 13;
-        this.setUserState(chatId, state);
-
-        return this.questions[12];
+        return { message: questions[12] };
       }
 
       return {
-        message:
-          '❗ Iltimos, telefon raqamingizni kiriting yoki "Raqamni ulashish" tugmasini bosing:',
-        keyboard: this.phoneKeyboard,
+        message: 'errors.phone_invalid',
+        keyboard: this.getKeyboard(lang, 'phone'),
       };
     }
 
-    // === STEP 13 — USERNAME ===
+    // STEP 13 - Username
     if (step === 13) {
       if ('text' in msg && msg.text) {
         const username = msg.text.trim();
 
         if (!username.startsWith('@')) {
-          return '❗ Iltimos, username @ belgisi bilan boshlansin. Masalan: @username\nQaytadan kiriting:';
+          return { message: 'errors.username_invalid' };
         }
 
         if (username.length < 2) {
-          return '❗ Iltimos, toʻgʻri username kiriting. Masalan: @username\nQaytadan kiriting:';
+          return { message: 'errors.username_invalid' };
         }
 
         state.answers[13] = username;
-        this.setUserState(chatId, state);
 
         return {
           confirmation: true,
@@ -456,19 +360,12 @@ export class BotService {
           gender: state.gender,
         };
       }
-
-      return this.questions[12];
     }
 
     return null;
   }
 
-  // ===== YORDAMCHI METOD =====
-  async handleAnswer(chatId: string, msg: any) {
-    return this.handleUserAnswer(chatId, msg);
-  }
-
-  // ===== IMAGE GENERATOR =====
+  // Generate image
   async generateImage(data: any, gender?: string) {
     const uploadsDir = path.resolve(process.cwd(), 'src', 'uploads');
     if (!fs.existsSync(uploadsDir)) {
