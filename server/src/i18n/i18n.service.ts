@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Language } from 'src/common/enums';
 
-export type Language = 'uz' | 'ru' | 'en';
+// export type Language = 'uz' | 'ru' | 'en';
 
 export interface Translation {
   [key: string]: any;

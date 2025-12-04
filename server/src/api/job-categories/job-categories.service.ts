@@ -10,12 +10,16 @@ import categoriesJson from '../../infrastructure/data/categories.json';
 import { Language } from 'src/common/enums';
 import { MyLogger } from 'src/logger/logger.service';
 import { catchError, successRes } from 'src/infrastructure/response';
+import type { CategoryTranslationRepository } from 'src/core/repository/category_translation.repository';
 
 @Injectable()
 export class JobCategoriesService {
   constructor(
     @InjectRepository(CategoryEntity)
     private readonly categoryRepo: CategoryRepository,
+
+    @InjectRepository(CategoryTranslationEntity)
+    private readonly categoryTranslateRepo: CategoryTranslationRepository,
 
     @InjectRepository(SubCategoryEntity)
     private readonly subRepo: SubCategoryRepository,
@@ -111,10 +115,27 @@ export class JobCategoriesService {
 
   async allCategories() {
     try {
-      const allCategories = await this.categoryRepo.find();
+      const allCategories = await this.categoryRepo.find({
+        relations: ['translations'],
+      });
       return successRes(allCategories, 200, 'All categories');
     } catch (error) {
       return catchError(error);
+    }
+  }
+
+  async allTranslatedCategories(lang: Language) {
+    try {
+      const allTranslatedCategories = this.categoryTranslateRepo.find({
+        where: { lang },
+      });
+      return successRes(
+        allTranslatedCategories,
+        200,
+        'All categories by selected language',
+      );
+    } catch (error) {
+      catchError(error);
     }
   }
 }

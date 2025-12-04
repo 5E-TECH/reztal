@@ -6,8 +6,9 @@ import { BotAdminService } from './bot-admin/bot.admin.service';
 
 // I18n service import qilish kerak
 import { I18nService } from '../../i18n/i18n.service';
-import type { Language } from '../../i18n/i18n.service';
+// import type { Language } from '../../i18n/i18n.service';
 import { UserLanguageService } from '../../api/user/user-language.service';
+import { Language } from 'src/common/enums';
 
 interface ServiceResponse {
   confirmation?: boolean;
@@ -38,6 +39,12 @@ export class BotMainUpdate {
       keyboard: [[this.t(lang, 'confirmation'), this.t(lang, 'edit')]],
       resize_keyboard: true,
       one_time_keyboard: true,
+    };
+  }
+
+  private getCategoriesKeyboard(categories) {
+    return {
+      keyboard: [categories.map()],
     };
   }
 
@@ -243,13 +250,16 @@ export class BotMainUpdate {
     // Til tanlashni taklif qilish
     await ctx.reply(
       '🇺🇿🇷🇺🇺🇸 ' +
-        this.t('uz', 'choose_language') +
+        this.t(Language.UZ, 'choose_language') +
         '\n' +
-        this.t('ru', 'choose_language') +
+        this.t(Language.RU, 'choose_language') +
         '\n' +
-        this.t('en', 'choose_language'),
+        this.t(Language.EN, 'choose_language'),
       {
-        reply_markup: this.i18nService.getKeyboard('uz', 'language_selector'),
+        reply_markup: this.i18nService.getKeyboard(
+          Language.UZ,
+          'language_selector',
+        ),
       },
     );
   }
@@ -332,13 +342,16 @@ export class BotMainUpdate {
 
       await ctx.reply(
         '🇺🇿🇷🇺🇺🇸 ' +
-          this.t('uz', 'choose_language') +
+          this.t(Language.UZ, 'choose_language') +
           '\n' +
-          this.t('ru', 'choose_language') +
+          this.t(Language.RU, 'choose_language') +
           '\n' +
-          this.t('en', 'choose_language'),
+          this.t(Language.EN, 'choose_language'),
         {
-          reply_markup: this.i18nService.getKeyboard('uz', 'language_selector'),
+          reply_markup: this.i18nService.getKeyboard(
+            Language.UZ,
+            'language_selector',
+          ),
         },
       );
       return;
@@ -379,14 +392,14 @@ export class BotMainUpdate {
       ) {
         await ctx.reply(
           '🇺🇿🇷🇺🇺🇸 ' +
-            this.t('uz', 'choose_language') +
+            this.t(Language.UZ, 'choose_language') +
             '\n' +
-            this.t('ru', 'choose_language') +
+            this.t(Language.RU, 'choose_language') +
             '\n' +
-            this.t('en', 'choose_language'),
+            this.t(Language.EN, 'choose_language'),
           {
             reply_markup: this.i18nService.getKeyboard(
-              'uz',
+              Language.UZ,
               'language_selector',
             ),
           },
@@ -893,20 +906,19 @@ export class BotMainUpdate {
       await ctx.reply(this.t(lang, result), {
         reply_markup: { remove_keyboard: true },
       });
-      return 
+      return;
     } else if (result.message) {
-  // 🔴 YANGI: Agar message obyekti qaytgan bo'lsa
-  await ctx.reply(result.message, {
-    reply_markup: result.keyboard || { remove_keyboard: true }
-  });
-  return 
- } 
-    else if (result.confirmation) {
+      // 🔴 YANGI: Agar message obyekti qaytgan bo'lsa
+      await ctx.reply(result.message, {
+        reply_markup: result.keyboard || { remove_keyboard: true },
+      });
+      return;
+    } else if (result.confirmation) {
       // Confirmation mode ga o'tish
       state.confirmationMode = true;
       state.answers = result.answers;
       await this.showVacancyConfirmation(ctx, result.answers, lang);
-      return
+      return;
     }
   }
 
@@ -1195,6 +1207,9 @@ export class BotMainUpdate {
       if ('text' in msg && msg.text) {
         if (msg.text === this.t(lang, 'confirmation')) {
           const formattedAnswers = { ...state.answers };
+          if (formattedAnswers[1]) {
+            // await ctx.reply()
+          }
           if (formattedAnswers[4]) {
             formattedAnswers[4] = this.formatSalary(formattedAnswers[4]);
           }
