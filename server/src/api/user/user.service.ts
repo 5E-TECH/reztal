@@ -84,7 +84,11 @@ export class UserService {
         where: { phone_number },
       });
       if (isExistCandidate) {
-        throw new ConflictException('Candidate with this number already exist');
+        return successRes(
+          { id: isExistCandidate.id },
+          200,
+          'This user already registered',
+        );
       }
       let hashedPassword: string | undefined;
       if (password) {
@@ -103,7 +107,7 @@ export class UserService {
 
       await this.userRepo.save(newCandidate);
 
-      return successRes({}, 201, 'New candidate created');
+      return successRes({ id: newCandidate.id }, 201, 'New candidate created');
     } catch (error) {
       return catchError(error);
     }
