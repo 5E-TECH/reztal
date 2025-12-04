@@ -13,7 +13,7 @@ export class UserEntity extends BaseEntity {
   @Column({ type: 'varchar' })
   phone_number: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: true })
   password: string;
 
   @Column({ type: 'enum', enum: Roles })

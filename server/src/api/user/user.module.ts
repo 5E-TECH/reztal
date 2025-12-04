@@ -10,5 +10,6 @@ import { UserTaskEntity } from 'src/core/entity/user-task.entity';
   imports: [TypeOrmModule.forFeature([UserEntity, UserTaskEntity])],
   controllers: [UserController],
   providers: [UserService, BcryptEncryption],
+  exports: [UserService],
 })
 export class UserModule {}

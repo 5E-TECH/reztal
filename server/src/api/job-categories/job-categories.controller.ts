@@ -14,4 +14,9 @@ import { UpdateJobCategoryDto } from './dto/update-job-category.dto';
 @Controller('job-categories')
 export class JobCategoriesController {
   constructor(private readonly jobCategoriesService: JobCategoriesService) {}
+
+  @Get()
+  findAll() {
+    return this.jobCategoriesService.allCategories();
+  }
 }

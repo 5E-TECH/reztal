@@ -3,12 +3,23 @@ import { createCanvas, loadImage } from 'canvas';
 import * as fs from 'fs';
 import * as path from 'path';
 import { I18nService, Language } from '../../../i18n/i18n.service';
+import { UserService } from 'src/api/user/user.service';
+import { JobPostsService } from 'src/api/job-posts/job-posts.service';
+import { JobCategoriesService } from 'src/api/job-categories/job-categories.service';
+import { keyboard } from 'telegraf/markup';
+import { MyLogger } from 'src/logger/logger.service';
 
 @Injectable()
 export class BotRezumeService {
   private userStates = new Map<string, any>();
 
-  constructor(private i18nService: I18nService) {}
+  constructor(
+    private i18nService: I18nService,
+    private userService: UserService,
+    private jobPostsService: JobPostsService,
+    private categoryService: JobCategoriesService,
+    private logger: MyLogger,
+  ) {}
 
   getUserState(id: string) {
     return this.userStates.get(id);
@@ -126,9 +137,21 @@ export class BotRezumeService {
     // STEP 1 - Profession
     if (step === 1) {
       if ('text' in msg && msg.text) {
+        this.logger.log('Message: ', msg.text);
+        const categories = await this.categoryService.allCategories();
+        this.logger.log('Categories', categories.message);
+        const keyboard = {
+          keyboard: [...categories.data.map((cat) => [cat.name])],
+          resize_keyboard: true,
+        };
+
+        state.selectedcategory = msg.text;
         state.answers[1] = msg.text;
         state.step = 2;
-        return { message: questions[1] };
+        return {
+          message: questions[1],
+          // keyboard,
+        };
       }
     }
 
@@ -369,11 +392,29 @@ export class BotRezumeService {
 
         state.answers[13] = username;
 
-        return {
-          confirmation: true,
-          answers: state.answers,
-          gender: state.gender,
-        };
+        try {
+          const userData = {
+            name: state.answers[5],
+            phone_number: state.answers[12],
+            telegram_id: chatId,
+          };
+          const resumeData = {};
+          const userCreateResponse =
+            await this.userService.createCandidate(userData);
+
+          if (!`${userCreateResponse.statusCode}`.startsWith('2')) {
+            return 'Error on creating user';
+          }
+          // const createResume = await this.jobPostsService.createResume();
+
+          return {
+            confirmation: true,
+            answers: state.answers,
+            gender: state.gender,
+          };
+        } catch (error) {
+          return error;
+        }
       }
     }
 
