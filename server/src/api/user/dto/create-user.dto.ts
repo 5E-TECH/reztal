@@ -20,7 +20,7 @@ export class CreateUserDto {
   @ApiProperty({ name: 'Password', example: 'Password1234' })
   @IsOptional()
   @IsString()
-  password: string;
+  password?: string;
 
   @ApiProperty({ name: 'TelegramId', example: 'Telegram id here' })
   @IsNotEmpty()

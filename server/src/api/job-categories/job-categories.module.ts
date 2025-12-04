@@ -18,5 +18,6 @@ import { SubCategoryTranslationEntity } from 'src/core/entity/sub_category_trans
   ],
   controllers: [JobCategoriesController],
   providers: [JobCategoriesService],
+  exports: [JobCategoriesService],
 })
 export class JobCategoriesModule {}

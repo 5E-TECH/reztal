@@ -24,7 +24,7 @@
   "username": "Username",
   "not_provided": "Ko'rsatilmagan",
   "joined": "Qo'shilgan",
-  
+
   "rezume_questions": [
     "1. Kasbingiz nima?",
     "2. Rezyumengizni PDF ko'rinishida yuboring.",
@@ -40,7 +40,7 @@
     "12. Telefon raqamingiz?",
     "13. Telegram username?"
   ],
-  
+
   "vacancy_questions": [
     "1. Kasb nomi?",
     "2. Kompaniya nomi?",
@@ -51,12 +51,14 @@
     "7. Telegram username?",
     "8. Telefon raqam?"
   ],
-  
+
   "gender": {
     "male": "Erkak",
     "female": "Ayol"
   },
-  
+
+  "categories": ["Dasturlash"],
+
   "regions": [
     ["Toshkent shahri", "Toshkent viloyati"],
     ["Andijon", "Farg'ona", "Namangan"],
@@ -65,19 +67,26 @@
     ["Jizzax", "Sirdaryo", "Navoiy"],
     ["Qoraqalpog'iston"]
   ],
-  
-  "languages": ["O'zbek", "Rus", "Ingliz", "Koreys", "Boshqa", "🟢 Tanlashni yakunlash"],
-  
+
+  "languages": [
+    "O'zbek",
+    "Rus",
+    "Ingliz",
+    "Koreys",
+    "Boshqa",
+    "🟢 Tanlashni yakunlash"
+  ],
+
   "work_types": ["Offline", "Online", "Gibrid"],
-  
+
   "phone_request": "📞 Raqamni ulashish",
-  
+
   "post_status": {
     "pending": "⏳ Tasdiqlash kutilmoqda",
     "approved": "✅ Tasdiqlangan",
     "rejected": "❌ Rad etilgan"
   },
-  
+
   "errors": {
     "phone_invalid": "❗ Iltimos, telefon raqamingizni +998xxxxxxxxx shaklida kiriting\n\nMisol: +998901234567",
     "username_invalid": "❗ Iltimos, username @ belgisi bilan boshlansin\n\nMisol: @username",
@@ -89,7 +98,7 @@
     "language_invalid": "❗ Iltimos, kamida bitta tilni tanlang",
     "gender_invalid": "❗ Iltimos, jinsingizni tanlang"
   },
-  
+
   "success": {
     "post_created": "📝 Postingiz yaratildi! Admin tasdiqlagach kanalga joylanadi.",
     "post_approved": "🎉 Postingiz tasdiqlandi va kanalga joylandi!",
@@ -99,14 +108,14 @@
     "post_edited": "✅ Post tahrirlandi",
     "post_deleted": "✅ Post o'chirildi"
   },
-  
+
   "confirmation_messages": {
     "rezume_preview": "📋 **Ma'lumotlaringizni tekshiring:**\n\n🧑‍💼 Kasb: {{job}}\n📊 Tajriba: {{experience}}\n💰 Maosh: {{salary}}\n👤 Ism: {{name}}\n🎂 Yosh: {{age}}\n⚧ Jins: {{gender}}\n📍 Hudud: {{region}}\n🌐 Tillar: {{languages}}\n📁 Portfolio: {{portfolio}}\n💼 Ko'nikmalar: {{skills}}\n📞 Telefon: {{phone}}\n👤 Username: {{username}}\n\n*Ma'lumotlaringiz to'g'rimi?*",
     "vacancy_preview": "📋 **Vakansiya ma'lumotlari:**\n\n💼 Kasb: {{job}}\n🏢 Kompaniya: {{company}}\n📍 Hudud: {{region}}\n🖥️ Ish turi: {{workType}}\n💰 Maosh: {{salary}}\n📋 Talablar: {{requirements}}\n👤 Username: {{username}}\n📞 Telefon: {{phone}}\n\n*Ma'lumotlar to'g'rimi?*",
     "rezume_submitted": "📝 Postingiz yaratildi! Admin tasdiqlagach kanalga joylanadi.\n\n⏳ Holat: **Tasdiqlash kutilmoqda**\n🔢 Post ID: {{postId}}",
     "vacancy_submitted": "📝 Vakansiya postingiz yaratildi! Admin tasdiqlagach kanalga joylanadi.\n\n⏳ Holat: **Tasdiqlash kutilmoqda**\n🔢 Post ID: {{postId}}"
   },
-  
+
   "admin": {
     "no_pending_posts": "✅ Tasdiqlash kutilayotgan postlar yo'q.",
     "pending_posts_list": "⏳ Tasdiqlash kutilayotgan postlar:\n\n",
@@ -125,12 +134,12 @@
     "last_admin": "❌ Oxirgi adminni o'chirish mumkin emas!",
     "post_not_found": "❌ Post topilmadi!"
   },
-  
+
   "edit_fields": {
     "rezume": "1: Kasb, 2: Tajriba, 3: Maosh, 4: Ism, 5: Yosh, 6: Jins, 7: Hudud, 8: Tillar, 9: Portfolio, 10: Ko'nikmalar, 11: Telefon, 12: Username",
     "vacancy": "1: Kasb, 2: Kompaniya, 3: Hudud, 4: Ish turi, 5: Maosh, 6: Talablar, 7: Username, 8: Telefon"
   },
-  
+
   "edit_prompt": "✏️ Qaysi maydonni tahrirlamoqchisiz?",
   "enter_new_value": "Yangi qiymatni kiriting:",
   "select_from_list": "Quyidagilardan birini tanlang:",

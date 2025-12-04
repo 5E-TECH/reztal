@@ -9,6 +9,7 @@ import type { SubCategoryRepository } from 'src/core/repository/sub-category.rep
 import categoriesJson from '../../infrastructure/data/categories.json';
 import { Language } from 'src/common/enums';
 import { MyLogger } from 'src/logger/logger.service';
+import { catchError, successRes } from 'src/infrastructure/response';
 
 @Injectable()
 export class JobCategoriesService {
@@ -105,6 +106,15 @@ export class JobCategoriesService {
       );
     } catch (error) {
       this.logger.error('Job categories initialization failed', error);
+    }
+  }
+
+  async allCategories() {
+    try {
+      const allCategories = await this.categoryRepo.find();
+      return successRes(allCategories, 200, 'All categories');
+    } catch (error) {
+      return catchError(error);
     }
   }
 }
