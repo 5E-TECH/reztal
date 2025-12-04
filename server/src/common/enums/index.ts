@@ -60,3 +60,9 @@ export enum Channel_Group_Status {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
 }
+
+export enum Language {
+  EN = 'en',
+  RU = 'ru',
+  UZ = 'uz',
+}

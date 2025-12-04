@@ -11,9 +11,19 @@ import { JobPostsModule } from './job-posts/job-posts.module';
 import { JobCategoriesModule } from './job-categories/job-categories.module';
 import { I18nService } from 'src/i18n/i18n.service';
 import { UserLanguageService } from './user/user-language.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { TasksModule } from './tasks/tasks.module';
+import { UserTasksModule } from './user-tasks/user-tasks.module';
+import { ChannelGroupModule } from './channel-group/channel-group.module';
 
 @Module({
   imports: [
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      url: config.DB_URL,
+      autoLoadEntities: true,
+      synchronize: true,
+    }),
     TelegrafModule.forRoot({
       token: config.BOT_TOKEN!,
     }),
@@ -23,6 +33,9 @@ import { UserLanguageService } from './user/user-language.service';
     JobCategoriesModule,
     I18nService,
     UserLanguageService
+    TasksModule,
+    UserTasksModule,
+    ChannelGroupModule,
   ],
   providers: [BotAdminService, BotRezumeService, BotMainUpdate, BotVacancyService], // providerlar shu modulda bo'lishi kerak
 })
