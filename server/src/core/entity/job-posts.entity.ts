@@ -51,7 +51,7 @@ export class JobPostsEntity extends BaseEntity {
   @Column({ type: 'enum', enum: Post_Type })
   type: Post_Type;
 
-  @Column({ type: 'bigint' })
+  @Column({ type: 'bigint', default: 0 })
   view_count: number;
 
   @ManyToOne(() => SubCategoryEntity, (subCategory) => subCategory.job_posts)
