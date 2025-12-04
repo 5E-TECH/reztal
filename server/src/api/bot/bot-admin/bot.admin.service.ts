@@ -20,6 +20,7 @@ export interface Post {
   caption?: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
+  channelMessageId?: number; // Kanaldagi post ID si
 }
 
 export interface Admin {
@@ -216,10 +217,18 @@ export class BotAdminService {
   async approvePost(
     postId: number,
     bot: any,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    messageId?: number;
+    channelId?: string;
+  }> {
     const post = await this.getPostById(postId);
     if (!post) {
-      return { success: false, message: 'Post topilmadi!' };
+      return {
+        success: false,
+        message: 'Post topilmadi!',
+      };
     }
 
     post.status = 'approved';
@@ -228,9 +237,11 @@ export class BotAdminService {
       // Kanal uchun formatlash
       const channelPost = this.formatPostForChannel(post);
 
+      let messageId: number | undefined;
+
       // 1. KANALGA post joylash
       if (post.imagePath) {
-        await bot.sendPhoto(
+        const sentMessage = await bot.sendPhoto(
           this.CHANNEL_ID,
           { source: post.imagePath },
           {
@@ -238,10 +249,16 @@ export class BotAdminService {
             parse_mode: 'HTML',
           },
         );
+        messageId = sentMessage.message_id;
       } else {
-        await bot.sendMessage(this.CHANNEL_ID, channelPost.caption, {
-          parse_mode: 'HTML',
-        });
+        const sentMessage = await bot.sendMessage(
+          this.CHANNEL_ID,
+          channelPost.caption,
+          {
+            parse_mode: 'HTML',
+          },
+        );
+        messageId = sentMessage.message_id;
       }
 
       // 2. USERGA xabar yuborish
@@ -254,9 +271,14 @@ export class BotAdminService {
         { parse_mode: 'Markdown' },
       );
 
+      // Postni yangilash
+      post.channelMessageId = messageId;
+
       return {
         success: true,
         message: '✅ Post tasdiqlandi va kanalga joylandi!',
+        messageId: messageId,
+        channelId: this.CHANNEL_ID,
       };
     } catch (error) {
       console.error("Kanalga post jo'natishda xato:", error);
@@ -540,5 +562,16 @@ ${data[8] || ''} ${data[7] || ''}
   // Username orqali admin qidirish
   findAdminByUsername(username: string): Admin | undefined {
     return this.admins.find((admin) => admin.username === username);
+  }
+
+  // Kanalda postni o'chirish
+  async deleteChannelPost(bot: any, messageId: number): Promise<boolean> {
+    try {
+      await bot.deleteMessage(this.CHANNEL_ID, messageId);
+      return true;
+    } catch (error) {
+      console.error("Kanaldagi postni o'chirishda xatolik:", error);
+      return false;
+    }
   }
 }

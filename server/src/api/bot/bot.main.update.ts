@@ -628,6 +628,7 @@ export class BotMainUpdate {
         state.answers[4] = text;
         state.step = 5;
 
+        // MAOSH QADAMI - MENU CHIQARILADI
         await ctx.reply('5. Maosh?', {
           reply_markup: { remove_keyboard: true },
         });
@@ -689,6 +690,7 @@ export class BotMainUpdate {
         state.answers[7] = username;
         state.step = 8;
 
+        // TELEFON QADAMI - RAQAM ULASHISH TUGMASI CHIQADI
         await ctx.reply('8. Telefon raqamingiz (+998xxxxxxxxx)?', {
           reply_markup: this.botVacancyService.phoneKeyboard,
         });
@@ -1386,6 +1388,15 @@ export class BotMainUpdate {
 
     // String formatida javob
     if (typeof result === 'string') {
+      // ===== TELEFON QADAMINI TEKSHIRISH =====
+      if (result === 'step12') {
+        // TELEFON RAQAMI UCHUN RAQAM ULASHISH TUGMASINI CHIQARAMIZ
+        await ctx.reply('12. Telefon raqamingiz (+998xxxxxxxxx)?', {
+          reply_markup: this.botRezumeService.phoneKeyboard,
+        });
+        return;
+      }
+
       await ctx.reply(result, { reply_markup: { remove_keyboard: true } });
       return;
     }
@@ -1489,12 +1500,21 @@ export class BotMainUpdate {
         ctx.telegram,
       );
 
-      await ctx.editMessageText(
-        `✅ ${result.message}\n\n` +
-          `Post ID: ${postId}\n` +
-          `Admin: @${ctx.from?.username || "Noma'lum"}`,
-      );
-      await ctx.answerCbQuery('Post tasdiqlandi!');
+      // Postni botdan o'chirish (kanalda post bor bo'lsa ham)
+      try {
+        if (result.messageId && result.channelId) {
+          // Kanaldagi postni o'chirish
+          await ctx.telegram.deleteMessage(result.channelId, result.messageId);
+        }
+
+        // Botdagi post xabarini o'chirish
+        await ctx.deleteMessage();
+
+        await ctx.answerCbQuery('✅ Post tasdiqlandi va kanalga joylandi!');
+      } catch (error) {
+        console.error("Post o'chirishda xatolik:", error);
+        await ctx.answerCbQuery('✅ Post tasdiqlandi!');
+      }
     } else if (data.startsWith('reject_')) {
       const postId = parseInt(data.replace('reject_', ''));
 

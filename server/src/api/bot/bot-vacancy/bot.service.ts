@@ -257,6 +257,7 @@ export class BotVacancyService {
 📋 Talablar: ${requirements}
 
 👤 Telegram: ${username}
+
 📞 Telefon: ${phone}
 
 🪪 Vakansiya joylash: @Reztal_post
