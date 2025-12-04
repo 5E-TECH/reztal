@@ -31,12 +31,10 @@ import { ChannelGroupModule } from './channel-group/channel-group.module';
     LoggerModule,
     JobPostsModule,
     JobCategoriesModule,
-    I18nService,
-    UserLanguageService
     TasksModule,
     UserTasksModule,
     ChannelGroupModule,
   ],
-  providers: [BotAdminService, BotRezumeService, BotMainUpdate, BotVacancyService], // providerlar shu modulda bo'lishi kerak
+  providers: [BotAdminService, BotRezumeService, BotMainUpdate, BotVacancyService, I18nService, UserLanguageService], // providerlar shu modulda bo'lishi kerak
 })
 export class AppModule {}

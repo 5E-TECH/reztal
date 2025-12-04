@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { BotService } from '../bot-rezume/bot.rezume.service';
+import { BotRezumeService } from '../bot-rezume/bot.rezume.service';
 import { BotMainUpdate } from '../bot.main.update';
 
 @Module({
-  providers: [BotService, BotMainUpdate],
+  providers: [BotRezumeService, BotMainUpdate],
 })
 export class BotModule {}

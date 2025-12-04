@@ -109,9 +109,9 @@ export class BotMainUpdate {
     const cleaned = phone.replace(/\D/g, '');
 
     // Agar 998 bilan boshlanmasa
-    if (cleaned.startsWith('998') && cleaned.length === 12) {
-      return `+${cleaned}`;
-    }
+    // if (cleaned.startsWith('998') && cleaned.length === 12) {
+    //   return `+${cleaned}`;
+    // }
 
     // Agar +998 bilan boshlanmasa
     if (cleaned.startsWith('+998') && cleaned.length === 13) {
@@ -119,14 +119,14 @@ export class BotMainUpdate {
     }
 
     // Agar contact orqali kelsa (faqat raqamlar)
-    if (cleaned.length === 12) {
-      return `+${cleaned}`;
-    }
+    // if (cleaned.length === 12) {
+    //   return `+${cleaned}`;
+    // }
 
     // Agar 9 bilan boshlansa (contactda + yo'q)
-    if (cleaned.length === 13 && cleaned.startsWith('9')) {
-      return `+${cleaned}`;
-    }
+    // if (cleaned.length === 13 && cleaned.startsWith('9')) {
+    //   return `+${cleaned}`;
+    // }
 
     return phone;
   }
@@ -893,11 +893,20 @@ export class BotMainUpdate {
       await ctx.reply(this.t(lang, result), {
         reply_markup: { remove_keyboard: true },
       });
-    } else if (result.confirmation) {
+      return 
+    } else if (result.message) {
+  // 🔴 YANGI: Agar message obyekti qaytgan bo'lsa
+  await ctx.reply(result.message, {
+    reply_markup: result.keyboard || { remove_keyboard: true }
+  });
+  return 
+ } 
+    else if (result.confirmation) {
       // Confirmation mode ga o'tish
       state.confirmationMode = true;
       state.answers = result.answers;
       await this.showVacancyConfirmation(ctx, result.answers, lang);
+      return
     }
   }
 

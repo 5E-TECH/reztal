@@ -44,12 +44,14 @@ export class BotRezumeService {
       };
     }
 
-    const cleaned = phone.replace(/\D/g, '');
-    const numbersOnly = cleaned.startsWith('998')
-      ? cleaned
-      : cleaned.replace(/^\+?/, '');
+    // Formatlash funksiyasidan foydalanib telefonni formatlaymiz
+    const formatted = this.formatPhoneNumber(phone);
 
-    if (numbersOnly.length !== 13) {
+    // Faqat raqamlarni olamiz
+    const numbersOnly = formatted.replace(/\D/g, '');
+
+    // 998 + 9 ta raqam = 12 ta raqam bo'lishi kerak
+    if (numbersOnly.length !== 12) {
       return {
         isValid: false,
         message: 'errors.phone_invalid',
@@ -70,16 +72,29 @@ export class BotRezumeService {
   private formatPhoneNumber(phone: string): string {
     const cleaned = phone.replace(/\D/g, '');
 
+    // Agar 998 bilan boshlansa va uzunligi 12 bo'lsa (998 + 9 ta raqam)
     if (cleaned.startsWith('998') && cleaned.length === 12) {
       return `+${cleaned}`;
     }
 
-    if (cleaned.startsWith('+998') && cleaned.length === 13) {
-      return cleaned;
+    // Agar 998 bilan boshlansa va uzunligi 9 bo'lsa (998 + 9 ta raqam)
+    if (cleaned.startsWith('998') && cleaned.length === 9) {
+      return `+998${cleaned}`;
     }
 
-    if (cleaned.length === 9) {
+    // Agar faqat 9 ta raqam bo'lsa (998 ni qo'shish kerak)
+    if (cleaned.length === 9 && !cleaned.startsWith('998')) {
       return `+998${cleaned}`;
+    }
+
+    // Agar +998 bilan boshlansa va 13 ta belgi bo'lsa (+998 + 9 ta raqam)
+    if (phone.startsWith('+998') && phone.replace(/\D/g, '').length === 12) {
+      return phone;
+    }
+
+    // Agar 0 bilan boshlanadigan 13 ta raqam bo'lsa
+    if (cleaned.startsWith('998') && cleaned.length === 12) {
+      return `+${cleaned}`;
     }
 
     return phone;
