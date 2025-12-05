@@ -57,8 +57,109 @@
     "female": "Ayol"
   },
 
-  "categories": ["Dasturlash"],
-
+  "category": {
+    "back": "⬅️ Orqaga",
+    "categories": [
+      {
+        "name": "Dasturlash",
+        "sub_categories": [
+          "Frontend",
+          "Backend",
+          "Fullstack",
+          "Mobil ilovalar",
+          "DevOps",
+          "QA / Testlash",
+          "Data Science",
+          "AI / ML"
+        ]
+      },
+      {
+        "name": "Dizayn",
+        "sub_categories": [
+          "Grafik dizayn",
+          "UI/UX dizayn",
+          "Motion dizayn",
+          "3D dizayn"
+        ]
+      },
+      {
+        "name": "Marketing",
+        "sub_categories": [
+          "SMM",
+          "Digital marketing",
+          "Targeting",
+          "SEO mutaxassisi",
+          "Kontent yaratish"
+        ]
+      },
+      {
+        "name": "Sotuv",
+        "sub_categories": [
+          "Sotuvchi",
+          "Call-markaz operatori",
+          "Biznes rivojlantirish",
+          "Korporativ savdo"
+        ]
+      },
+      {
+        "name": "Ta'lim",
+        "sub_categories": [
+          "Ingliz tili o'qituvchisi",
+          "Matematika o'qituvchisi",
+          "Mentor",
+          "Repetitor"
+        ]
+      },
+      {
+        "name": "Moliya va buxgalteriya",
+        "sub_categories": [
+          "Buxgalter",
+          "Kassir",
+          "Audit",
+          "Moliyaviy tahlilchi"
+        ]
+      },
+      {
+        "name": "Tibbiyot",
+        "sub_categories": ["Shifokor", "Hamshira", "Farmatsevt", "Laborant"]
+      },
+      {
+        "name": "Qurilish",
+        "sub_categories": [
+          "Usta",
+          "Muhandis",
+          "Arxitektor",
+          "Smeta mutaxassisi"
+        ]
+      },
+      {
+        "name": "Transport va logistika",
+        "sub_categories": ["Haydovchi", "Kuryer", "Logist", "Omborchi"]
+      },
+      {
+        "name": "Administratsiya",
+        "sub_categories": [
+          "Administrator",
+          "HR mutaxassisi",
+          "Ofis menejeri",
+          "Recepshn"
+        ]
+      },
+      {
+        "name": "Ishlab chiqarish",
+        "sub_categories": ["Operator", "Texnik", "Slesar", "Zavod ishchisi"]
+      },
+      {
+        "name": "Xizmat ko‘rsatish",
+        "sub_categories": [
+          "Ofitsiant",
+          "Barista",
+          "Sartarosh",
+          "Mehmonxona xodimi"
+        ]
+      }
+    ]
+  },
   "regions": [
     ["Toshkent shahri", "Toshkent viloyati"],
     ["Andijon", "Farg'ona", "Namangan"],

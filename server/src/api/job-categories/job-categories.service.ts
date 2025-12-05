@@ -126,8 +126,9 @@ export class JobCategoriesService {
 
   async allTranslatedCategories(lang: Language) {
     try {
-      const allTranslatedCategories = this.categoryTranslateRepo.find({
+      const allTranslatedCategories = await this.categoryTranslateRepo.find({
         where: { lang },
+        select: ['id', 'lang', 'name'],
       });
       return successRes(
         allTranslatedCategories,
