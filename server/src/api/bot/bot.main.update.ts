@@ -9,6 +9,8 @@ import { I18nService } from '../../i18n/i18n.service';
 // import type { Language } from '../../i18n/i18n.service';
 import { UserLanguageService } from '../../api/user/user-language.service';
 import { Language } from 'src/common/enums';
+import { UserService } from '../user/user.service';
+import { JobPostsService } from '../job-posts/job-posts.service';
 
 interface ServiceResponse {
   confirmation?: boolean;
@@ -26,6 +28,8 @@ export class BotMainUpdate {
     private botAdminService: BotAdminService,
     private i18nService: I18nService,
     private userLanguageService: UserLanguageService,
+    private userService: UserService,
+    private jobPostsService: JobPostsService,
   ) {}
 
   // ===== TARJIMA YORDAMCHI FUNKSIYASI =====
@@ -42,11 +46,13 @@ export class BotMainUpdate {
     };
   }
 
-  private getCategoriesKeyboard(categories) {
-    return {
-      keyboard: [categories.map()],
-    };
-  }
+  // private getCategoriesKeyboard(categories: object[]) {
+  //   return {
+  //     keyboard: [categories.map((cat) => cat)],
+  //     resize_keyboard: true,
+  //     one_time_keyboard: true,
+  //   };
+  // }
 
   private getRezumeEditKeyboard(lang: Language) {
     const fields = this.t(lang, 'edit_fields.rezume').split(', ');
@@ -415,6 +421,14 @@ export class BotMainUpdate {
         await ctx.reply(firstQuestion, {
           reply_markup: { remove_keyboard: true },
         });
+        setTimeout(async () => {
+          await ctx.reply(
+            'Iltimos, quyidagi kategoriyalardan birini tanlang:',
+            {
+              reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+            },
+          );
+        }, 0);
         return;
       }
 
@@ -1207,9 +1221,6 @@ export class BotMainUpdate {
       if ('text' in msg && msg.text) {
         if (msg.text === this.t(lang, 'confirmation')) {
           const formattedAnswers = { ...state.answers };
-          if (formattedAnswers[1]) {
-            // await ctx.reply()
-          }
           if (formattedAnswers[4]) {
             formattedAnswers[4] = this.formatSalary(formattedAnswers[4]);
           }
@@ -1220,44 +1231,83 @@ export class BotMainUpdate {
             formattedAnswers[13] = this.formatUsername(formattedAnswers[13]);
           }
 
-          const result = await this.botRezumeService.generateImage(
-            formattedAnswers,
-            state.gender,
-          );
+          try {
+            const userData = {
+              name: state.answers[5],
+              phone_number: state.answers[12],
+              telegram_id: chatId,
+            };
 
-          const post = await this.botAdminService.addPost({
-            type: 'rezume',
-            userId: chatId,
-            userInfo: {
-              username: ctx.from?.username || this.t(lang, 'unknown'),
-              first_name: ctx.from?.first_name,
-              last_name: ctx.from?.last_name,
-              language: lang,
-            },
-            data: formattedAnswers,
-            imagePath: result.imagePath,
-            caption: result.caption,
-            status: 'pending',
-          });
+            const userCreateResponse =
+              await this.userService.createCandidate(userData);
 
-          await this.botAdminService.notifyAdminAboutNewPost(
-            post,
-            ctx.telegram,
-          );
+            if (!`${userCreateResponse.statusCode}`.startsWith('2')) {
+              return 'Error on creating user';
+            }
 
-          await ctx.replyWithPhoto(
-            { source: result.imagePath },
-            {
-              caption: this.t(lang, 'confirmation_messages.rezume_submitted', {
-                postId: post.id,
-              }),
-              parse_mode: 'Markdown',
-              reply_markup: { remove_keyboard: true },
-            },
-          );
+            const resumeData = {
+              sub_category: String(state.answers[1]),
+              experience: String(state.answers[3]),
+              skills: String(state.answers[11]),
+              salary: String(state.answers[4]),
+              age: String(state.answers[6]),
+              address: String(state.answers[8]),
+              language: String(state.answers[9]),
+              portfolio: String(state.answers[10]),
+              telegram_username: String(state.answers[13]),
+              user_id: userCreateResponse.data.id,
+            };
 
-          this.botRezumeService.deleteUserState(chatId);
-          return;
+            const createResume =
+              await this.jobPostsService.createResume(resumeData);
+
+            console.log(createResume.message);
+
+            const result = await this.botRezumeService.generateImage(
+              formattedAnswers,
+              state.gender,
+            );
+
+            const post = await this.botAdminService.addPost({
+              type: 'rezume',
+              userId: chatId,
+              userInfo: {
+                username: ctx.from?.username || this.t(lang, 'unknown'),
+                first_name: ctx.from?.first_name,
+                last_name: ctx.from?.last_name,
+                language: lang,
+              },
+              data: formattedAnswers,
+              imagePath: result.imagePath,
+              caption: result.caption,
+              status: 'pending',
+            });
+
+            await this.botAdminService.notifyAdminAboutNewPost(
+              post,
+              ctx.telegram,
+            );
+
+            await ctx.replyWithPhoto(
+              { source: result.imagePath },
+              {
+                caption: this.t(
+                  lang,
+                  'confirmation_messages.rezume_submitted',
+                  {
+                    postId: post.id,
+                  },
+                ),
+                parse_mode: 'Markdown',
+                reply_markup: { remove_keyboard: true },
+              },
+            );
+
+            this.botRezumeService.deleteUserState(chatId);
+            return;
+          } catch (error) {
+            return error;
+          }
         }
 
         if (msg.text === this.t(lang, 'edit')) {
@@ -1548,6 +1598,7 @@ export class BotMainUpdate {
     const result = (await this.botRezumeService.handleUserAnswer(
       chatId,
       msg,
+      ctx,
     )) as ServiceResponse;
 
     if (!result) return;

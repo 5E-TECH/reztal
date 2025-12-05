@@ -172,6 +172,94 @@ export class I18nService {
     }
   }
 
+  getCategoryKeyboard(lang: Language): any {
+    const translation = this.getTranslation(lang);
+
+    if (!translation.category || !translation.category.categories) {
+      console.error(`No categories found for language: ${lang}`);
+      return { remove_keyboard: true };
+    }
+
+    // Categorylarni olamiz
+    const categories = translation.category.categories;
+
+    // Har bir category name ni button qilamiz
+    const keyboard = categories.map((cat: any) => [{ text: cat.name }]);
+
+    // Orqaga qaytish tugmasi ham qo'shib qo'yamiz
+    keyboard.push([{ text: translation.category.back }]);
+
+    return {
+      keyboard,
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    };
+  }
+
+  getSubCategoryKeyboard(lang: Language, categoryName: string): any {
+    const translation = this.getTranslation(lang);
+
+    // 1-variant: Agar category ichida categories bo'lsa
+    if (translation.category && translation.category.categories) {
+      const category = translation.category.categories.find(
+        (c: any) => c.name === categoryName,
+      );
+
+      if (!category) {
+        return { remove_keyboard: true };
+      }
+
+      const subs = category.sub_categories || [];
+
+      const keyboard = subs.map((s: string) => [{ text: s }]);
+      keyboard.push([{ text: translation.category.back }]);
+
+      return {
+        keyboard,
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      };
+    }
+
+    // 2-variant: Agar to'g'ridan-to'g'ri categories bo'lsa
+    else if (translation.categories) {
+      const category = translation.categories.find(
+        (c: any) => c.name === categoryName,
+      );
+
+      if (!category) {
+        return { remove_keyboard: true };
+      }
+
+      const subs = category.sub_categories || [];
+      const keyboard = subs.map((s: string) => [{ text: s }]);
+
+      // Orqaga tugmasi
+      if (translation.category?.back) {
+        keyboard.push([{ text: translation.category.back }]);
+      } else if (translation.back) {
+        keyboard.push([{ text: translation.back }]);
+      }
+
+      return {
+        keyboard,
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      };
+    }
+
+    // 3-variant: Agar strukturani topmasa
+    else {
+      console.error('❌ No categories found in translation:', {
+        hasCategory: !!translation.category,
+        hasCategories: !!translation.categories,
+        keys: Object.keys(translation),
+      });
+
+      return { remove_keyboard: true };
+    }
+  }
+
   getQuestions(lang: Language, type: 'rezume' | 'vacancy'): string[] {
     const translation = this.getTranslation(lang);
     return translation[`${type}_questions`] || [];

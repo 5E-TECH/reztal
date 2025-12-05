@@ -12,13 +12,13 @@ export class JobPostsEntity extends BaseEntity {
   @Column({ type: 'uuid' })
   sub_category_id: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: true })
   experience: string;
 
-  @Column({ type: 'enum', enum: Level })
+  @Column({ type: 'enum', enum: Level, nullable: true })
   level: Level;
 
-  @Column({ type: 'enum', enum: Work_Format })
+  @Column({ type: 'enum', enum: Work_Format, nullable: true })
   work_format: Work_Format;
 
   @Column({ type: 'text' })

@@ -9,6 +9,8 @@ import { JobCategoriesService } from 'src/api/job-categories/job-categories.serv
 import { keyboard } from 'telegraf/markup';
 import { MyLogger } from 'src/logger/logger.service';
 import { Language } from 'src/common/enums';
+// import { Category_Interface } from '../common/interfaces';
+import { Context } from 'telegraf';
 
 @Injectable()
 export class BotRezumeService {
@@ -127,7 +129,7 @@ export class BotRezumeService {
   }
 
   // Handle user answer
-  async handleUserAnswer(chatId: string, msg: any): Promise<any> {
+  async handleUserAnswer(chatId: string, msg: any, ctx: Context): Promise<any> {
     const state = this.userStates.get(chatId);
     if (!state) return null;
 
@@ -142,39 +144,92 @@ export class BotRezumeService {
 
     const questions = this.getQuestions(lang);
 
-    // STEP 1 - Profession
+    // STEP 1 - Profession (Kasb tanlash)
     if (step === 1) {
       if ('text' in msg && msg.text) {
-        this.logger.log('Message: ', msg.text);
-        let currentLang;
-        if (lang === 'uz') {
-          currentLang = Language;
+        const text = msg.text.trim();
+        const translation = this.i18nService.getTranslation(lang);
+        const categories = translation.category?.categories || [];
+
+        // === 1. ORQAGA TUGMASI ===
+        if (text === translation.category?.back) {
+          if (state.selectedCategory) {
+            delete state.selectedCategory;
+            return {
+              message: 'Kasbingizni tanlang:',
+              keyboard: this.i18nService.getCategoryKeyboard(lang),
+            };
+          } else {
+            this.userStates.delete(chatId);
+            return {
+              message: 'Asosiy menyuga qaytdingiz',
+              keyboard: this.getKeyboard(lang, 'main'),
+            };
+          }
         }
-        const categories =
-          await this.categoryService.allTranslatedCategories(lang);
 
-        if (!categories) {
-          return 'Categoryies not found';
+        // === 2. KATEGORIYA TANLASH (AVVAL TEKSHIRISH) ===
+        const category = categories.find((cat: any) => cat.name === text);
+        if (category) {
+          state.selectedCategory = category.name;
+
+          this.userStates.set(chatId, state); // State ni saqlash
+          return {
+            message: `${category.name} kategoriyasidan pastagi mutaxassislikni tanlang:`,
+            keyboard: this.i18nService.getSubCategoryKeyboard(
+              lang,
+              category.name,
+            ),
+          };
         }
 
-        this.logger.log('Categories', categories.message);
-        const keyboard = {
-          keyboard: [
-            ...categories.data.map((cat) => {
-              console.log(cat);
-              return [cat.name];
-            }),
-          ],
-          resize_keyboard: true,
-        };
+        // === 3. SUBKATEGORIYA TANLASH (KEYIN TEKSHIRISH) ===
+        // Faqat agar kategoriya tanlangan bo'lsa
+        if (state.selectedCategory) {
+          const currentCategory = categories.find(
+            (cat: any) => cat.name === state.selectedCategory,
+          );
 
-        state.selectedcategory = msg.text;
-        state.answers[1] = msg.text;
-        state.step = 2;
-        return {
-          message: questions[1],
-          // keyboard,
-        };
+          if (
+            currentCategory &&
+            currentCategory.sub_categories &&
+            currentCategory.sub_categories.includes(text)
+          ) {
+            state.answers[1] = text; // Kasbni saqlash
+            state.answers.category = state.selectedCategory; // Kategoriyani saqlash
+            state.step = 2; // 2-qadamga o'tish
+            delete state.selectedCategory; // Vaqtinchalik holatni tozalash
+
+            this.userStates.set(chatId, state); // State ni saqlash
+
+            const questions = this.getQuestions(lang);
+
+            return {
+              message: questions[1], // "PDF yuboring"
+              keyboard: { remove_keyboard: true },
+            };
+          }
+        }
+
+        // === 4. AGAR HECH QAYSI BUTTON TANLANMASA ===
+        // Kategoriya buttonlarini chiqarish
+
+        // Agar kategoriya tanlanmagan bo'lsa, kategoriya buttonlarini chiqarish
+        if (!state.selectedCategory) {
+          return {
+            message: 'Iltimos, kasbingizni quyidagi kategoriyalardan tanlang:',
+            keyboard: this.i18nService.getCategoryKeyboard(lang),
+          };
+        } else {
+          // Agar kategoriya tanlangan, lekin subkategoriya noto'g'ri bo'lsa
+          return {
+            message: `Iltimos, "${state.selectedCategory}" kategoriyasidan pastagi mutaxassislikni tanlang:`,
+            keyboard: this.i18nService.getSubCategoryKeyboard(
+              lang,
+              state.selectedCategory,
+            ),
+          };
+        }
       }
     }
 
@@ -415,30 +470,17 @@ export class BotRezumeService {
 
         state.answers[13] = username;
 
-        try {
-          const userData = {
-            name: state.answers[5],
-            phone_number: state.answers[12],
-            telegram_id: chatId,
-          };
-          const resumeData = {};
-          const userCreateResponse =
-            await this.userService.createCandidate(userData);
-
-          if (!`${userCreateResponse.statusCode}`.startsWith('2')) {
-            return 'Error on creating user';
-          }
-          // const createResume = await this.jobPostsService.createResume();
-
-          return {
-            confirmation: true,
-            answers: state.answers,
-            gender: state.gender,
-          };
-        } catch (error) {
-          return error;
-        }
+        this.setUserState(chatId, state);
+        return {
+          confirmation: true,
+          answers: state.answers,
+          gender: state.gender,
+        };
       }
+      return {
+        message: questions[12],
+        keyboard: { remove_keyboard: true },
+      };
     }
 
     return null;
