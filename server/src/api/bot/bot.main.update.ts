@@ -1,3 +1,4 @@
+import { Index } from 'typeorm';
 import { Update, Start, On, Ctx, Action } from 'nestjs-telegraf';
 import { Context } from 'telegraf';
 import { BotRezumeService as BotRezumeService } from './bot-rezume/bot.rezume.service';
@@ -56,6 +57,7 @@ export class BotMainUpdate {
 
   private getRezumeEditKeyboard(lang: Language) {
     const fields = this.t(lang, 'edit_fields.rezume').split(', ');
+    console.log("11111", fields)
     return {
       keyboard: [
         [
@@ -83,6 +85,8 @@ export class BotMainUpdate {
       resize_keyboard: true,
     };
   }
+
+  
 
   private getVacancyEditKeyboard(lang: Language) {
     const fields = this.t(lang, 'edit_fields.vacancy').split(', ');
@@ -158,6 +162,15 @@ export class BotMainUpdate {
       .keyboard.flat();
     return regions.includes(region);
   }
+
+  private normalizeField(text: string) {
+  return text
+    .replace(/^(\d+)\./, '$1:')  // "1." → "1:"
+    .replace(/^(\d+)-/, '$1:')   // "1-" → "1:"
+    .replace(/^(\d+)\s+/, '$1:') // "1 Kasb" → "1: Kasb"
+    .trim();
+}
+
 
   private isValidWorkType(workType: string, lang: Language): boolean {
     const workTypes = this.i18nService
@@ -542,11 +555,20 @@ export class BotMainUpdate {
       }
       return;
     }
-
+    
     // ===== EDIT MODE =====
     if (state.editMode) {
       if ('text' in msg && msg.text) {
-        if (msg.text === this.t(lang, 'confirmation')) {
+        console.log('\n🔍 === VACANYC EDIT MODE HANDLER ===');
+        console.log('Message text:', msg.text);
+        console.log('Language:', lang);
+        console.log('State editMode:', state.editMode);
+        console.log('State editingField:', state.editingField);
+        const confirmationButton = `${this.t(lang, 'confirmation')}`
+        console.log('Confirmation button text:', confirmationButton);
+        console.log('Is confirmation?', msg.text === confirmationButton);
+        if (msg.text === confirmationButton) {
+          console.log('✅ User pressed confirmation - exiting edit mode');
           state.editMode = false;
           state.confirmationMode = true;
           await this.showVacancyConfirmation(ctx, state.answers, lang);
@@ -564,10 +586,13 @@ export class BotMainUpdate {
           [this.t(lang, 'edit_fields.vacancy').split(', ')[7]]: 8,
         };
 
+        console.log("FieldMap: ", fieldMap)
+
         if (fieldMap[msg.text]) {
           state.editingField = fieldMap[msg.text];
           state.editMode = false;
 
+        console.log("FieldMap[msg.text]", state.editingField)
           // ===== MAXSUS FIELD LAR UCHUN TO'GRIDAN-TO'G'RI KEYBOARD =====
           if (state.editingField === 3) {
             // Hudud
@@ -1310,6 +1335,7 @@ export class BotMainUpdate {
           }
         }
 
+        // ======= Edit mode =========
         if (msg.text === this.t(lang, 'edit')) {
           state.confirmationMode = false;
           state.editMode = true;
@@ -1323,7 +1349,15 @@ export class BotMainUpdate {
     // ===== EDIT MODE =====
     if (state.editMode) {
       if ('text' in msg && msg.text) {
-        if (msg.text === this.t(lang, 'confirmation')) {
+        console.log('\n🔍 === REZUME EDIT MODE HANDLER ===');
+        console.log('Message text: ', msg.text);
+        console.log('State editMode:', state.editMode);
+        console.log('State editingField:', state.editingField);
+        const rezumeConfirmationButton = `${this.t(lang, 'confirmation')}`;
+        console.log('Rezume confirmation button: ', rezumeConfirmationButton);
+        console.log('Is confirmation?', msg.text === rezumeConfirmationButton);
+        if (msg.text.includes(rezumeConfirmationButton)) {
+          console.log('✅ User pressed confirmation - exiting edit mode');
           state.editMode = false;
           state.confirmationMode = true;
           await this.showRezumeConfirmation(
@@ -1335,24 +1369,49 @@ export class BotMainUpdate {
           return;
         }
 
+        const labels = this.t(lang, 'edit_fields.rezume').split('');
+
+        // const fieldMap = {
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[0]]: 1,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[1]]: 3,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[2]]: 4,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[3]]: 5,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[4]]: 6,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[5]]: 7,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[6]]: 8,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[7]]: 9,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[8]]: 10,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[9]]: 11,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[10]]: 12,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[11]]: 13,
+        // };
+
         const fieldMap = {
-          [this.t(lang, 'edit_fields.rezume').split(', ')[0]]: 1,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[1]]: 3,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[2]]: 4,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[3]]: 5,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[4]]: 6,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[5]]: 7,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[6]]: 8,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[7]]: 9,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[8]]: 10,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[9]]: 11,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[10]]: 12,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[11]]: 13,
+          1: 1,
+          2: 3,
+          3: 4,
+          4: 5,
+          5: 6,
+          6: 7,
+          7: 8,
+          8: 9,
+          9: 10,
+          10: 11,
+          11: 12,
+          12: 13,
         };
 
-        if (fieldMap[msg.text]) {
-          state.editingField = fieldMap[msg.text];
+        // 🔹 Normalize: "1. Kasb" → 1, "Kasb"
+        const match = msg.text.match(/^(\d+)[\.:]?\s*(.*)$/);
+
+        const index = parseInt(match[1], 10);
+        const textPart = match[2].trim();
+
+        if (fieldMap[index]) {
+          state.editingField = fieldMap[index];
           state.editMode = false;
+
+          console.log('Field map [msg.text]: ', state.editingField);
 
           if (state.editingField === 7) {
             await ctx.reply(this.t(lang, 'rezume_questions')[6], {
@@ -1391,6 +1450,12 @@ export class BotMainUpdate {
           });
           return;
         }
+        else {
+          console.log('Raqam fieldMap topilmadi')
+        }
+      }
+      else {
+        console.log("Msg.text regex bilan match bo'lmadi")
       }
       return;
     }
