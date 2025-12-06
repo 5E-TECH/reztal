@@ -524,7 +524,8 @@ export class BotRezumeService {
     ctx.fillText(salary, 450, 1320);
     ctx.fillText(exp, 1200, 1320);
 
-    const fileName = path.join(uploadsDir, `output_${Date.now()}.png`);
+    const imgName = `output_${Date.now()}.png`;
+    const fileName = path.join(uploadsDir, imgName);
     const out = fs.createWriteStream(fileName);
     const stream = canvas.createPNGStream();
     stream.pipe(out);

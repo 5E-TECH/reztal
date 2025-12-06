@@ -111,8 +111,33 @@ export class BotVacancyService {
     if (!state) return null;
 
     const step = state.step;
+    console.log('State step in service:', step);
+
     const lang: Language = state.lang || 'uz';
     const questions = this.getQuestions(lang);
+    console.log('Questions:', questions);
+
+    // STEP 5-7 ni ham qo'shing (maosh, talablar, username)
+    if (step >= 5 && step <= 7) {
+      if ('text' in msg) {
+        state.answers[step] = msg.text;
+        state.step++;
+
+        console.log('New step after 5-7:', state.step);
+
+        // Agar 8-qadamga o'tilsa (telefon)
+        if (state.step === 8) {
+          return {
+            message: questions[7], // 8. Telefon raqam?
+            keyboard: this.getKeyboard(lang, 'phone'),
+          };
+        }
+
+        // Keyingi savolni qaytarish
+        return { message: questions[state.step - 1] };
+      }
+      return null;
+    }
 
     // STEP 8 - Phone (special handling)
     if (step === 8) {
@@ -150,7 +175,7 @@ export class BotVacancyService {
       };
     }
 
-    // Text answers
+    // Step 1-4 uchun (oldingi kod)
     if ('text' in msg) {
       state.answers[step] = msg.text;
     } else {
@@ -162,22 +187,15 @@ export class BotVacancyService {
     // Special steps with keyboards
     if (state.step === 3) {
       return {
-        message: questions[2],
+        message: questions[2], // 3. Hudud?
         keyboard: this.getKeyboard(lang, 'regions'),
       };
     }
 
     if (state.step === 4) {
       return {
-        message: questions[3],
+        message: questions[3], // 4. Ish turi?
         keyboard: this.getKeyboard(lang, 'work_types'),
-      };
-    }
-
-    if (state.step === 8) {
-      return {
-        message: questions[7],
-        keyboard: this.getKeyboard(lang, 'phone'),
       };
     }
 

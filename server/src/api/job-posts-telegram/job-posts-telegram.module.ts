@@ -9,5 +9,6 @@ import { JobPostsEntity } from 'src/core/entity/job-posts.entity';
   imports: [TypeOrmModule.forFeature([JobPostsTelegramEntity, JobPostsEntity])],
   controllers: [JobPostsTelegramController],
   providers: [JobPostsTelegramService],
+  exports: [JobPostsTelegramService],
 })
 export class JobPostsTelegramModule {}
