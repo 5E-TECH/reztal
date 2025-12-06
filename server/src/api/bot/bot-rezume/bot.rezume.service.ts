@@ -339,21 +339,32 @@ export class BotRezumeService {
     }
 
     // STEP 9 - Languages
+    // Bitta tilni 2 marta tanlasa 2 chisidan keyin tahrirlash bo'lib qolyabdi shuni 1 ta tilni 2 marta tanlaydigan qilmaslik kerak agar 2 marta tanlasa 2 chisini tanlaganidan so'ng siz bu tilni tanlagansiz iltimos boshqa til tanlang desin
     if (step === 9) {
       if ('text' in msg && msg.text) {
-        const text = msg.text;
+        const text = msg.text.trim();
 
         if (!Array.isArray(state.answers[9])) {
           state.answers[9] = [];
         }
 
+        // "Boshqa"/"Other" bosilsa
         if (text === this.i18nService.t(lang, 'languages.4')) {
-          // "Boshqa"/"Other"
           state.awaitingLanguageText = true;
           return { message: 'enter_new_value' };
         }
 
+        // Boshqa til kiritilsa
         if (state.awaitingLanguageText && text) {
+          // Bu til allaqachon mavjudligini tekshirish
+          if (state.answers[9].includes(text)) {
+            state.awaitingLanguageText = false;
+            return {
+              message: 'errors.language_already_selected', // Yangi xabar qo'shish kerak
+              keyboard: this.getKeyboard(lang, 'languages'),
+            };
+          }
+
           state.answers[9].push(text);
           state.awaitingLanguageText = false;
           return {
@@ -362,33 +373,33 @@ export class BotRezumeService {
           };
         }
 
+        // "Tanlashni yakunlash" bosilsa
         if (text === this.i18nService.t(lang, 'languages.5')) {
-          // "Tanlashni yakunlash"
           if (state.answers[9].length === 0) {
             return {
               message: 'errors.language_invalid',
               keyboard: this.getKeyboard(lang, 'languages'),
             };
           }
-
           state.step = 10;
           return { message: questions[9] };
         }
 
+        // Ruyxatdan til tanlansa
         const validLanguages = this.getKeyboard(
           lang,
           'languages',
         ).keyboard.flat();
+
         if (validLanguages.includes(text)) {
+          // Til allaqachon tanlanganligini tekshirish
           if (state.answers[9].includes(text)) {
-            state.answers[9] = state.answers[9].filter(
-              (i: string) => i !== text,
-            );
             return {
-              message: 'edit_prompt',
+              message: 'errors.language_already_selected', // "Siz bu tilni tanlagansiz, boshqa til tanlang"
               keyboard: this.getKeyboard(lang, 'languages'),
             };
           } else {
+            // Yangi tilni qo'shish
             state.answers[9].push(text);
             return {
               message: 'select_from_list',
