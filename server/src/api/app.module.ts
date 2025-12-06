@@ -15,6 +15,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TasksModule } from './tasks/tasks.module';
 import { UserTasksModule } from './user-tasks/user-tasks.module';
 import { ChannelGroupModule } from './channel-group/channel-group.module';
+import { JobPostsTelegramModule } from './job-posts-telegram/job-posts-telegram.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ChannelGroupModule } from './channel-group/channel-group.module';
     TasksModule,
     UserTasksModule,
     ChannelGroupModule,
+    JobPostsTelegramModule,
   ],
   providers: [BotAdminService, BotRezumeService, BotMainUpdate, BotVacancyService, I18nService, UserLanguageService], // providerlar shu modulda bo'lishi kerak
 })

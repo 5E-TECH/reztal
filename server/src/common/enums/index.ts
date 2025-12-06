@@ -66,3 +66,8 @@ export enum Language {
   RU = 'ru',
   UZ = 'uz',
 }
+
+export enum Chat_Type {
+  CHANNEL = 'channel',
+  GROUP = 'group',
+}

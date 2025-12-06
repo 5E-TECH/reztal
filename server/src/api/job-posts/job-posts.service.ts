@@ -67,6 +67,11 @@ export class JobPostsService {
     }
   }
 
+  async confirmResumeByAdmin() {
+    try {
+    } catch (error) {}
+  }
+
   findAll() {
     return `This action returns all jobPosts`;
   }

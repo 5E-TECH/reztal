@@ -1,0 +1,105 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { CreateJobPostsTelegramDto } from './dto/create-job-posts-telegram.dto';
+import { UpdateJobPostsTelegramDto } from './dto/update-job-posts-telegram.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { JobPostsEntity } from 'src/core/entity/job-posts.entity';
+import type { JobPostsRepository } from 'src/core/repository/job-posts.repository';
+import { catchError, successRes } from 'src/infrastructure/response';
+import { JobPostsTelegramEntity } from 'src/core/entity/job-posts-telegram.entity';
+import type { JobPostsTelegramRepository } from 'src/core/repository/job-posts-telegram.repository';
+import config from 'src/config';
+import { Chat_Type, Post_Status } from 'src/common/enums';
+import { DataSource } from 'typeorm';
+
+@Injectable()
+export class JobPostsTelegramService {
+  constructor(
+    @InjectRepository(JobPostsTelegramEntity)
+    private readonly jobPostTelegRepo: JobPostsTelegramRepository,
+
+    @InjectRepository(JobPostsEntity)
+    private readonly jobPostsRepo: JobPostsRepository,
+
+    private readonly dataSource: DataSource,
+  ) {}
+  async createPostForGroup(createPostTelegramDto: CreateJobPostsTelegramDto) {
+    try {
+      const { job_posts_id, message_id } = createPostTelegramDto;
+
+      const isExistJobPosts = await this.jobPostsRepo.findOne({
+        where: { id: job_posts_id },
+      });
+      if (!isExistJobPosts) {
+        throw new NotFoundException('Job post not found');
+      }
+
+      const newPostTelegram = this.jobPostTelegRepo.create({
+        chat_id: config.TELEGRAM_GROUP_ID,
+        chat_type: Chat_Type.GROUP,
+        job_posts_id,
+        message_id,
+      });
+      await this.jobPostTelegRepo.save(newPostTelegram);
+
+      return successRes({}, 201, 'Telegram post group created');
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
+  async acceptPostOnGroup(updatePostDto: UpdateJobPostsTelegramDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const { message_id } = updatePostDto;
+      const group = await queryRunner.manager.findOne(JobPostsTelegramEntity, {
+        where: { message_id, chat_type: Chat_Type.GROUP },
+        relations: ['job_posts'],
+      });
+      if (!group) {
+        throw new NotFoundException('Telegram group post not found');
+      }
+
+      const post = await queryRunner.manager.findOne(JobPostsEntity, {
+        where: {
+          id: group.job_post.id,
+          post_status: Post_Status.PENDING,
+        },
+      });
+      if (!post) {
+        throw new NotFoundException('Post not found');
+      }
+
+      post.post_status = Post_Status.APPROVED;
+      await queryRunner.manager.save(post);
+
+      await queryRunner.commitTransaction();
+      return successRes({}, 200, 'Post accepted successfully');
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      return catchError(error);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+  create(createJobPostsTelegramDto: CreateJobPostsTelegramDto) {
+    return 'This action adds a new jobPostsTelegram';
+  }
+
+  findAll() {
+    return `This action returns all jobPostsTelegram`;
+  }
+
+  findOne(id: number) {
+    return `This action returns a #${id} jobPostsTelegram`;
+  }
+
+  update(id: number, updateJobPostsTelegramDto: UpdateJobPostsTelegramDto) {
+    return `This action updates a #${id} jobPostsTelegram`;
+  }
+
+  remove(id: number) {
+    return `This action removes a #${id} jobPostsTelegram`;
+  }
+}

@@ -1,8 +1,16 @@
 import { BaseEntity } from 'src/common/database/BaseEntity';
 import { Level, Post_Status, Post_Type, Work_Format } from 'src/common/enums';
-import { Column, Entity, Generated, JoinColumn, ManyToOne } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Generated,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+} from 'typeorm';
 import { SubCategoryEntity } from './sub-category.entity';
 import { UserEntity } from './user.entity';
+import { JobPostsTelegramEntity } from './job-posts-telegram.entity';
 
 @Entity('job-posts')
 export class JobPostsEntity extends BaseEntity {
@@ -61,4 +69,10 @@ export class JobPostsEntity extends BaseEntity {
   @ManyToOne(() => UserEntity, (user) => user.job_posts)
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
+
+  @OneToMany(
+    () => JobPostsTelegramEntity,
+    (jobPostTelegram) => jobPostTelegram.job_post, // <-- to'g'ri
+  )
+  job_post_telegram: JobPostsTelegramEntity[];
 }
