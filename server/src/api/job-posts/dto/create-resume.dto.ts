@@ -52,4 +52,9 @@ export class CreateResumeDto {
   @IsNotEmpty()
   @IsString()
   user_id: string;
+
+  @ApiProperty({ name: 'Image name', example: 'nimadur.png' })
+  @IsNotEmpty()
+  @IsString()
+  image_path: string;
 }

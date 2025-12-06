@@ -8,6 +8,7 @@ import type { JobPostsRepository } from 'src/core/repository/job-posts.repositor
 import { Post_Status, Post_Type } from 'src/common/enums';
 import { SubCategoryTranslationEntity } from 'src/core/entity/sub_category_translation';
 import type { SubCategoryTranslationRepository } from 'src/core/repository/sub_category_translation.repository';
+import { UpdateJobPostsTelegramDto } from '../job-posts-telegram/dto/update-job-posts-telegram.dto';
 
 @Injectable()
 export class JobPostsService {
@@ -31,6 +32,7 @@ export class JobPostsService {
         sub_category,
         telegram_username,
         user_id,
+        image_path,
       } = createResumeDto;
 
       const subCategoryId = await this.subCatTraRepo.findOne({
@@ -58,6 +60,7 @@ export class JobPostsService {
         user_id,
         post_status: Post_Status.PENDING,
         type: Post_Type.RESUME,
+        image_path,
       });
       await this.jobPostRepo.save(newResume);
 

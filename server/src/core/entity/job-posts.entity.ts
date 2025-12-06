@@ -53,6 +53,9 @@ export class JobPostsEntity extends BaseEntity {
   @Column({ type: 'uuid' })
   user_id: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  image_path: string;
+
   @Column({ type: 'enum', enum: Post_Status, default: Post_Status.PENDING })
   post_status: Post_Status;
 

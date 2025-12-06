@@ -1,50 +1,22 @@
 import { Injectable } from '@nestjs/common';
-
-export interface Statistics {
-  totalUsers: number;
-  totalPosts: number;
-  pendingPosts: number;
-  approvedPosts: number;
-  rejectedPosts: number;
-  rezumePosts: number;
-  vacancyPosts: number;
-}
-
-export interface Post {
-  id: number;
-  type: 'rezume' | 'vacancy';
-  userId: string;
-  userInfo: any;
-  data: any;
-  imagePath?: string;
-  caption?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: Date;
-  channelMessageId?: number; // Kanaldagi post ID si
-}
-
-export interface Admin {
-  id: string;
-  username: string;
-  phone?: string; // Telefon raqam qo'shildi
-  addedBy?: string;
-  joinedAt: Date;
-}
+import config from 'src/config';
+import { Post } from '../common/interfaces';
+import { InjectRepository } from '@nestjs/typeorm';
+import { JobPostsTelegramEntity } from 'src/core/entity/job-posts-telegram.entity';
+import type { JobPostsTelegramRepository } from 'src/core/repository/job-posts-telegram.repository';
+import { Chat_Type, Post_Type } from 'src/common/enums';
+import { JobPostsTelegramService } from 'src/api/job-posts-telegram/job-posts-telegram.service';
+import path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class BotAdminService {
+  constructor(
+    private readonly jobPostsTelegramService: JobPostsTelegramService,
+  ) {}
+
   private adminStates = new Map<string, any>();
   private posts: Post[] = []; // Temporary storage - replace with DB
-  private admins: Admin[] = [
-    {
-      id: '5411202292',
-      username: '@urozov04',
-      phone: '+998905234382', // Boshlang'ich admin telefon raqami
-      joinedAt: new Date(),
-    },
-  ]; // Boshlang'ich admin
-
-  private readonly CHANNEL_ID = '@workandvacancypostschanel'; // O'z kanalingizni qo'ying
 
   // Admin state management
   setAdminState(chatId: string, state: any) {
@@ -59,106 +31,10 @@ export class BotAdminService {
     this.adminStates.delete(chatId);
   }
 
-  // Admin tekshirish (telefon raqam orqali ham)
-  isAdmin(userId: string): boolean {
-    return this.admins.some(
-      (admin) => admin.id === userId || admin.phone === userId,
-    );
-  }
-
-  // ========== ADMIN MANAGEMENT ==========
-
-  // Barcha adminlarni olish
-  getAllAdmins(): Admin[] {
-    return this.admins;
-  }
-
-  // Admin qo'shish (Telegram ID orqali)
-  addAdmin(
-    userId: string,
-    username: string,
-  ): { success: boolean; message: string } {
-    if (this.admins.some((admin) => admin.id === userId)) {
-      return { success: false, message: 'Bu user allaqachon admin!' };
-    }
-
-    this.admins.push({
-      id: userId,
-      username: username,
-      joinedAt: new Date(),
-    });
-
-    return {
-      success: true,
-      message: `✅ @${username} admin sifatida qo'shildi!`,
-    };
-  }
-
-  // Admin qo'shish (telefon raqam orqali)
-  addAdminByPhone(
-    phone: string,
-    username: string,
-    addedBy: string,
-  ): { success: boolean; message: string } {
-    // Telefon raqam allaqachon mavjudligini tekshirish
-    const existingAdmin = this.admins.find(
-      (admin) => admin.phone === phone || admin.username === username,
-    );
-
-    if (existingAdmin) {
-      return {
-        success: false,
-        message: `❌ Bu admin allaqachon mavjud!\nTelefon: ${existingAdmin.phone}\nUsername: @${existingAdmin.username}`,
-      };
-    }
-
-    // Yangi admin yaratish
-    const newAdmin: Admin = {
-      id: phone, // Telefon raqamni ID sifatida ishlatish
-      username: username,
-      phone: phone,
-      addedBy: addedBy,
-      joinedAt: new Date(),
-    };
-
-    this.admins.push(newAdmin);
-
-    return {
-      success: true,
-      message: `✅ Yangi admin qo'shildi!\nTelefon: ${phone}\nUsername: @${username}`,
-    };
-  }
-
-  // Admin o'chirish
-  removeAdmin(userId: string): { success: boolean; message: string } {
-    const index = this.admins.findIndex(
-      (admin) => admin.id === userId || admin.phone === userId,
-    );
-    if (index === -1) {
-      return { success: false, message: 'Admin topilmadi!' };
-    }
-
-    // Oxirgi adminni o'chirish mumkin emas
-    if (this.admins.length === 1) {
-      return {
-        success: false,
-        message: "Oxirgi adminni o'chirish mumkin emas!",
-      };
-    }
-
-    const admin = this.admins[index];
-    this.admins.splice(index, 1);
-
-    return {
-      success: true,
-      message: `✅ @${admin.username} adminlikdan olindi!`,
-    };
-  }
-
   // ========== POST MANAGEMENT ==========
 
   // Yangi post qo'shish
-  async addPost(post: Omit<Post, 'id' | 'createdAt'>): Promise<Post> {
+  async addPost(post): Promise<Post> {
     const newPost: Post = {
       ...post,
       id: this.posts.length + 1,
@@ -169,238 +45,185 @@ export class BotAdminService {
     return newPost;
   }
 
-  // Tasdiqlash kutilayotgan postlarni olish
-  async getPendingPosts(): Promise<Post[]> {
-    return this.posts.filter((post) => post.status === 'pending');
-  }
-
-  // Barcha postlarni olish
-  async getAllPosts(): Promise<Post[]> {
-    return this.posts;
-  }
-
-  // Postni ID bo'yicha olish
-  async getPostById(postId: number): Promise<Post | null> {
-    return this.posts.find((post) => post.id === postId) || null;
-  }
-
   // Adminlarga yangi post haqida xabar yuborish
   async notifyAdminAboutNewPost(post: Post, bot: any) {
     const formattedPost = this.formatPostForAdmin(post);
 
-    // Barcha adminlarga xabar yuborish
-    for (const admin of this.admins) {
-      try {
-        if (post.imagePath) {
-          await bot.sendPhoto(
-            admin.id,
-            { source: post.imagePath },
-            {
-              caption: formattedPost.caption,
-              parse_mode: 'HTML',
-              reply_markup: formattedPost.keyboard,
-            },
-          );
-        } else {
-          await bot.sendMessage(admin.id, formattedPost.caption, {
+    try {
+      let sentMessage;
+
+      if (post.imagePath) {
+        sentMessage = await bot.sendPhoto(
+          config.TELEGRAM_GROUP_ID,
+          { source: post.imagePath },
+          {
+            caption: formattedPost.caption,
             parse_mode: 'HTML',
             reply_markup: formattedPost.keyboard,
-          });
-        }
-      } catch (error) {
-        console.error(`Admin ${admin.id} ga xabar yuborishda xato:`, error);
+          },
+        );
+      } else {
+        sentMessage = await bot.sendMessage(
+          config.TELEGRAM_GROUP_ID,
+          formattedPost.caption,
+          {
+            parse_mode: 'HTML',
+            reply_markup: formattedPost.keyboard,
+          },
+        );
       }
+
+      // 🔥 Mana shu yerda MESSAGE ID mavjud
+      console.log('Sent message ID:', sentMessage.message_id);
+      console.log('Full Telegram Message:', sentMessage);
+
+      return sentMessage.message_id; // agar boshqa joyga kerak bo‘lsa
+    } catch (error) {
+      console.error(`Guruhga xabar yuborishda xato:`, error);
     }
   }
 
   // Postni tasdiqlash
-  async approvePost(
-    postId: number,
-    bot: any,
-  ): Promise<{
-    success: boolean;
-    message: string;
-    messageId?: number;
-    channelId?: string;
-  }> {
-    const post = await this.getPostById(postId);
-    if (!post) {
-      return {
-        success: false,
-        message: 'Post topilmadi!',
-      };
+  async approvePost(groupMessageId: number, bot: any) {
+    const dto = {
+      message_id: String(groupMessageId),
+    };
+    const groupPost = await this.jobPostsTelegramService.acceptPostOnGroup(dto);
+
+    if (!`${groupPost.statusCode}`.startsWith('2')) {
+      return 'Error on approving post';
     }
 
-    post.status = 'approved';
+    const imagePath = groupPost.data.image_path;
 
-    try {
-      // Kanal uchun formatlash
-      const channelPost = this.formatPostForChannel(post);
-
-      let messageId: number | undefined;
-
-      // 1. KANALGA post joylash
-      if (post.imagePath) {
-        const sentMessage = await bot.sendPhoto(
-          this.CHANNEL_ID,
-          { source: post.imagePath },
-          {
-            caption: channelPost.caption,
-            parse_mode: 'HTML',
-          },
-        );
-        messageId = sentMessage.message_id;
-      } else {
-        const sentMessage = await bot.sendMessage(
-          this.CHANNEL_ID,
-          channelPost.caption,
-          {
-            parse_mode: 'HTML',
-          },
-        );
-        messageId = sentMessage.message_id;
-      }
-
-      // 2. USERGA xabar yuborish
-      await bot.sendMessage(
-        post.userId,
-        `🎉 **Tabriklaymiz!**\n\n` +
-          `✅ Postingiz tasdiqlandi va kanalga joylandi!\n` +
-          `📊 Endi boshqalar sizning ${post.type === 'rezume' ? 'rezyume' : 'vakansiya'}ngizni ko'rishadi.\n\n` +
-          `🔗 Kanal: ${this.CHANNEL_ID}`,
-        { parse_mode: 'Markdown' },
-      );
-
-      // Postni yangilash
-      post.channelMessageId = messageId;
-
-      return {
-        success: true,
-        message: '✅ Post tasdiqlandi va kanalga joylandi!',
-        messageId: messageId,
-        channelId: this.CHANNEL_ID,
-      };
-    } catch (error) {
-      console.error("Kanalga post jo'natishda xato:", error);
-      return {
-        success: false,
-        message: '❌ Post tasdiqlandi, lekin kanalga joylashda xatolik!',
-      };
+    if (!fs.existsSync(imagePath)) {
+      return 'Image not found: ' + imagePath;
     }
+
+    const channelPost = this.formatPostForChannel(groupPost);
+
+    const sentMessage = await bot.sendPhoto(
+      config.TELEGRAM_CHANNEL_ID,
+      { source: fs.createReadStream(imagePath) },
+      {
+        caption: channelPost.caption,
+        parse_mode: 'HTML',
+      },
+    );
+
+    await bot.sendMessage(
+      groupPost.data.user.telegram_id,
+      `🎉 **Tabriklaymiz!**\n\n` +
+        `✅ Postingiz tasdiqlandi va kanalga joylandi!\n` +
+        `📊 Endi boshqalar sizning ${groupPost.data.type === Post_Type.RESUME ? 'rezyume' : 'vakansiya'}ngizni ko'rishadi.\n\n` +
+        `🔗 Kanal: ${config.TELEGRAM_CHANNEL_ID}`,
+      { parse_mode: 'Markdown' },
+    );
+
+    return {
+      success: true,
+      message: 'Post tasdiqlandi va kanalga yuborildi',
+      channel_message_id: sentMessage.message_id,
+    };
   }
 
   // Postni rad etish
-  async rejectPost(
-    postId: number,
-    reason: string,
-    bot: any,
-  ): Promise<{ success: boolean; message: string }> {
-    const post = await this.getPostById(postId);
-    if (!post) {
-      return { success: false, message: 'Post topilmadi!' };
-    }
+  // async rejectPost(
+  //   postId: number,
+  //   reason: string,
+  //   bot: any,
+  // ): Promise<{ success: boolean; message: string }> {
+  //   const post = await this.getPostById(postId);
+  //   if (!post) {
+  //     return { success: false, message: 'Post topilmadi!' };
+  //   }
 
-    post.status = 'rejected';
+  //   post.status = 'rejected';
 
-    try {
-      // USERGA rad etish sababini yuborish
-      await bot.sendMessage(
-        post.userId,
-        `❌ **Postingiz rad etildi**\n\n` +
-          `ℹ️ Sabab: ${reason}\n\n` +
-          `📝 Iltimos, ma'lumotlaringizni tekshirib, qayta urinib ko'ring.\n` +
-          `🆘 Yordam kerak bo'lsa @Reztalpost ga murojaat qiling.`,
-        { parse_mode: 'Markdown' },
-      );
+  //   try {
+  //     // USERGA rad etish sababini yuborish
+  //     await bot.sendMessage(
+  //       post.userId,
+  //       `❌ **Postingiz rad etildi**\n\n` +
+  //         `ℹ️ Sabab: ${reason}\n\n` +
+  //         `📝 Iltimos, ma'lumotlaringizni tekshirib, qayta urinib ko'ring.\n` +
+  //         `🆘 Yordam kerak bo'lsa @Reztalpost ga murojaat qiling.`,
+  //       { parse_mode: 'Markdown' },
+  //     );
 
-      return {
-        success: true,
-        message: '✅ Post rad etildi va userga xabar yuborildi!',
-      };
-    } catch (error) {
-      console.error('Userga rad etish xabarini yuborishda xato:', error);
-      return {
-        success: false,
-        message: '❌ Post rad etildi, lekin userga xabar yuborishda xatolik!',
-      };
-    }
-  }
+  //     return {
+  //       success: true,
+  //       message: '✅ Post rad etildi va userga xabar yuborildi!',
+  //     };
+  //   } catch (error) {
+  //     console.error('Userga rad etish xabarini yuborishda xato:', error);
+  //     return {
+  //       success: false,
+  //       message: '❌ Post rad etildi, lekin userga xabar yuborishda xatolik!',
+  //     };
+  //   }
+  // }
 
   // Postni tahrirlash
-  async editPost(
-    postId: number,
-    field: number,
-    value: string,
-  ): Promise<{ success: boolean; message: string }> {
-    const post = await this.getPostById(postId);
-    if (!post) {
-      return { success: false, message: 'Post topilmadi!' };
-    }
+  // async editPost(
+  //   postId: number,
+  //   field: number,
+  //   value: string,
+  // ): Promise<{ success: boolean; message: string }> {
+  //   const post = await this.getPostById(postId);
+  //   if (!post) {
+  //     return { success: false, message: 'Post topilmadi!' };
+  //   }
 
-    // Field raqamiga qarab tahrirlash
-    if (post.type === 'rezume') {
-      // Rezyume uchun field mapping
-      const rezumeFields = {
-        1: 1, // Kasb
-        2: 3, // Tajriba
-        3: 4, // Maosh
-        4: 5, // Ism
-        5: 6, // Yosh
-        6: 7, // Jins
-        7: 8, // Hudud
-        8: 9, // Tillar
-        9: 10, // Portfolio
-        10: 11, // Ko'nikmalar
-        11: 12, // Telefon
-        12: 13, // Username
-      };
+  //   // Field raqamiga qarab tahrirlash
+  //   if (post.type === 'rezume') {
+  //     // Rezyume uchun field mapping
+  //     const rezumeFields = {
+  //       1: 1, // Kasb
+  //       2: 3, // Tajriba
+  //       3: 4, // Maosh
+  //       4: 5, // Ism
+  //       5: 6, // Yosh
+  //       6: 7, // Jins
+  //       7: 8, // Hudud
+  //       8: 9, // Tillar
+  //       9: 10, // Portfolio
+  //       10: 11, // Ko'nikmalar
+  //       11: 12, // Telefon
+  //       12: 13, // Username
+  //     };
 
-      const actualField = rezumeFields[field];
-      if (actualField) {
-        post.data[actualField] = value;
-      }
-    } else {
-      // Vakansiya uchun field mapping
-      const vacancyFields = {
-        1: 1, // Kasb
-        2: 2, // Kompaniya
-        3: 3, // Hudud
-        4: 4, // Ish turi
-        5: 5, // Maosh
-        6: 6, // Talablar
-        7: 7, // Username
-        8: 8, // Telefon
-      };
+  //     const actualField = rezumeFields[field];
+  //     if (actualField) {
+  //       post.data[actualField] = value;
+  //     }
+  //   } else {
+  //     // Vakansiya uchun field mapping
+  //     const vacancyFields = {
+  //       1: 1, // Kasb
+  //       2: 2, // Kompaniya
+  //       3: 3, // Hudud
+  //       4: 4, // Ish turi
+  //       5: 5, // Maosh
+  //       6: 6, // Talablar
+  //       7: 7, // Username
+  //       8: 8, // Telefon
+  //     };
 
-      const actualField = vacancyFields[field];
-      if (actualField) {
-        post.data[actualField] = value;
-      }
-    }
+  //     const actualField = vacancyFields[field];
+  //     if (actualField) {
+  //       post.data[actualField] = value;
+  //     }
+  //   }
 
-    // Rasm qayta yaratilmaydi, faqat ma'lumot yangilanadi
-    return {
-      success: true,
-      message: `✅ Post #${postId} ning ${field}-maydoni yangilandi!\nYangi qiymat: ${value}`,
-    };
-  }
+  //   // Rasm qayta yaratilmaydi, faqat ma'lumot yangilanadi
+  //   return {
+  //     success: true,
+  //     message: `✅ Post #${postId} ning ${field}-maydoni yangilandi!\nYangi qiymat: ${value}`,
+  //   };
+  // }
 
   // ========== STATISTIKA ==========
-
-  // Statistika olish
-  async getStatistics(): Promise<Statistics> {
-    const allPosts = await this.getAllPosts();
-
-    return {
-      totalUsers: 150, // DB dan olish kerak
-      totalPosts: allPosts.length,
-      pendingPosts: allPosts.filter((p) => p.status === 'pending').length,
-      approvedPosts: allPosts.filter((p) => p.status === 'approved').length,
-      rejectedPosts: allPosts.filter((p) => p.status === 'rejected').length,
-      rezumePosts: allPosts.filter((p) => p.type === 'rezume').length,
-      vacancyPosts: allPosts.filter((p) => p.type === 'vacancy').length,
-    };
-  }
 
   // ========== FORMAT FUNCTIONS ==========
 
@@ -467,25 +290,25 @@ ${typeText}
   }
 
   // Postni kanal uchun formatlash
-  formatPostForChannel(post: Post): { caption: string } {
-    if (post.type === 'rezume') {
-      const data = post.data;
+  formatPostForChannel(result): { caption: string } {
+    const data = result.data;
+    if (data.type === Post_Type.RESUME) {
       return {
         caption: `
-▫️${data[1] || 'Kasb'}
+▫️${data.subCategory.translations.name || 'Kasb'}
 
-💰 Maosh: ${data[4] || 'Kelishilgan'}
+💰 Maosh: ${data.salary || 'Kelishilgan'}
 
-Ism: ${data[5] || '...'}
-Yosh: ${data[6] || '...'}
-Tajriba: ${data[3] || '...'}
-Hudud: ${data[8] || '...'}
-Tillar: ${Array.isArray(data[9]) ? data[9].join(', ') : data[9] || '...'}
-Ko'nikmalar: ${data[11] || '...'}
+Ism: ${data.user.name || '...'}
+Yosh: ${data.age || '...'}
+Tajriba: ${data.experience || '...'}
+Hudud: ${data.address || '...'}
+Tillar: ${data.language || '...'}
+Ko'nikmalar: ${data.skills || '...'}
 
 Aloqa uchun:
-${data[12] || ''} ${data[13] || ''}
-
+${data.user.phone_number || ''}
+${data.telegram_username || ''}
 - - - - -
 
 🧑‍💼 Rezyume joylash: @Reztalpost
@@ -494,7 +317,7 @@ ${data[12] || ''} ${data[13] || ''}
         `.trim(),
       };
     } else {
-      const data = post.data;
+      const data = result;
       return {
         caption: `
 ▫️${data[1] || 'Lavozim'} kerak
@@ -537,41 +360,14 @@ ${data[8] || ''} ${data[7] || ''}
     return this.posts.filter((post) => post.userId === userId);
   }
 
-  // Post statusini yangilash
-  async updatePostStatus(
-    postId: number,
-    status: 'pending' | 'approved' | 'rejected',
-  ): Promise<{ success: boolean; message: string }> {
-    const post = await this.getPostById(postId);
-    if (!post) {
-      return { success: false, message: 'Post topilmadi!' };
-    }
-
-    post.status = status;
-    return {
-      success: true,
-      message: `✅ Post statusi ${status} ga o'zgartirildi!`,
-    };
-  }
-
-  // Telefon raqam orqali admin qidirish
-  findAdminByPhone(phone: string): Admin | undefined {
-    return this.admins.find((admin) => admin.phone === phone);
-  }
-
-  // Username orqali admin qidirish
-  findAdminByUsername(username: string): Admin | undefined {
-    return this.admins.find((admin) => admin.username === username);
-  }
-
   // Kanalda postni o'chirish
-  async deleteChannelPost(bot: any, messageId: number): Promise<boolean> {
-    try {
-      await bot.deleteMessage(this.CHANNEL_ID, messageId);
-      return true;
-    } catch (error) {
-      console.error("Kanaldagi postni o'chirishda xatolik:", error);
-      return false;
-    }
-  }
+  // async deleteChannelPost(bot: any, messageId: number): Promise<boolean> {
+  //   try {
+  //     await bot.deleteMessage(this.CHANNEL_ID, messageId);
+  //     return true;
+  //   } catch (error) {
+  //     console.error("Kanaldagi postni o'chirishda xatolik:", error);
+  //     return false;
+  //   }
+  // }
 }

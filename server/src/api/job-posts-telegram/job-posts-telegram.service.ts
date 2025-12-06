@@ -53,10 +53,14 @@ export class JobPostsTelegramService {
     await queryRunner.startTransaction();
     try {
       const { message_id } = updatePostDto;
+      console.log('Kergan dto', message_id);
+
       const group = await queryRunner.manager.findOne(JobPostsTelegramEntity, {
         where: { message_id, chat_type: Chat_Type.GROUP },
-        relations: ['job_posts'],
+        relations: ['job_post', 'job_post.subCategory'],
       });
+      console.log('Bu guruh malumoti......', group);
+
       if (!group) {
         throw new NotFoundException('Telegram group post not found');
       }
@@ -66,6 +70,7 @@ export class JobPostsTelegramService {
           id: group.job_post.id,
           post_status: Post_Status.PENDING,
         },
+        relations: ['user', 'subCategory', 'subCategory.translations'],
       });
       if (!post) {
         throw new NotFoundException('Post not found');
@@ -74,15 +79,39 @@ export class JobPostsTelegramService {
       post.post_status = Post_Status.APPROVED;
       await queryRunner.manager.save(post);
 
+      console.log('Rezume qabul qilindi..................');
+
       await queryRunner.commitTransaction();
-      return successRes({}, 200, 'Post accepted successfully');
+      return successRes(post, 200, 'Post accepted successfully');
     } catch (error) {
+      console.log('Xatolik bor', error);
+
       await queryRunner.rollbackTransaction();
       return catchError(error);
     } finally {
       await queryRunner.release();
     }
   }
+
+  async getPostByMessageId(dto: UpdateJobPostsTelegramDto) {
+    try {
+      const { message_id } = dto;
+      console.log('Message in JobPosts', message_id);
+
+      const jobPostTelegram = await this.jobPostTelegRepo.findOne({
+        where: { message_id, chat_type: Chat_Type.GROUP },
+        relations: ['job_post'],
+      });
+      if (!jobPostTelegram) {
+        throw new NotFoundException('Job post telegram not found');
+      }
+
+      return successRes(jobPostTelegram, 200, 'Job post telegram found');
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
   create(createJobPostsTelegramDto: CreateJobPostsTelegramDto) {
     return 'This action adds a new jobPostsTelegram';
   }

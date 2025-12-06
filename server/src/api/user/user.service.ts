@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,6 +12,7 @@ import { Roles } from 'src/common/enums';
 import { catchError, successRes } from 'src/infrastructure/response';
 import { BcryptEncryption } from 'src/infrastructure/bcrypt';
 import config from 'src/config';
+import { GetUserDto } from './dto/get-admin.dto';
 
 @Injectable()
 export class UserService {
@@ -140,6 +145,21 @@ export class UserService {
       await this.userRepo.save(newCandidate);
 
       return successRes({}, 201, 'New candidate created');
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
+  async getAdmin(getUserDto: GetUserDto) {
+    try {
+      const { telegram_id } = getUserDto;
+      const user = await this.userRepo.findOne({
+        where: { telegram_id, role: Roles.ADMIN },
+      });
+      if (!user) {
+        throw new NotFoundException('Admin with this id not found');
+      }
+      return successRes({}, 200, 'Admin found');
     } catch (error) {
       return catchError(error);
     }

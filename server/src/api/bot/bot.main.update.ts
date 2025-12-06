@@ -1,4 +1,3 @@
-import { Index } from 'typeorm';
 import { Update, Start, On, Ctx, Action } from 'nestjs-telegraf';
 import { Context } from 'telegraf';
 import { BotRezumeService as BotRezumeService } from './bot-rezume/bot.rezume.service';
@@ -9,9 +8,10 @@ import { BotAdminService } from './bot-admin/bot.admin.service';
 import { I18nService } from '../../i18n/i18n.service';
 // import type { Language } from '../../i18n/i18n.service';
 import { UserLanguageService } from '../../api/user/user-language.service';
-import { Language } from 'src/common/enums';
+import { Language, Roles } from 'src/common/enums';
 import { UserService } from '../user/user.service';
 import { JobPostsService } from '../job-posts/job-posts.service';
+import { JobPostsTelegramService } from '../job-posts-telegram/job-posts-telegram.service';
 
 interface ServiceResponse {
   confirmation?: boolean;
@@ -31,6 +31,7 @@ export class BotMainUpdate {
     private userLanguageService: UserLanguageService,
     private userService: UserService,
     private jobPostsService: JobPostsService,
+    private jobPostsTelegramService: JobPostsTelegramService,
   ) {}
 
   // ===== TARJIMA YORDAMCHI FUNKSIYASI =====
@@ -47,17 +48,8 @@ export class BotMainUpdate {
     };
   }
 
-  // private getCategoriesKeyboard(categories: object[]) {
-  //   return {
-  //     keyboard: [categories.map((cat) => cat)],
-  //     resize_keyboard: true,
-  //     one_time_keyboard: true,
-  //   };
-  // }
-
   private getRezumeEditKeyboard(lang: Language) {
     const fields = this.t(lang, 'edit_fields.rezume').split(', ');
-    console.log("11111", fields)
     return {
       keyboard: [
         [
@@ -85,8 +77,6 @@ export class BotMainUpdate {
       resize_keyboard: true,
     };
   }
-
-  
 
   private getVacancyEditKeyboard(lang: Language) {
     const fields = this.t(lang, 'edit_fields.vacancy').split(', ');
@@ -162,15 +152,6 @@ export class BotMainUpdate {
       .keyboard.flat();
     return regions.includes(region);
   }
-
-  private normalizeField(text: string) {
-  return text
-    .replace(/^(\d+)\./, '$1:')  // "1." → "1:"
-    .replace(/^(\d+)-/, '$1:')   // "1-" → "1:"
-    .replace(/^(\d+)\s+/, '$1:') // "1 Kasb" → "1: Kasb"
-    .trim();
-}
-
 
   private isValidWorkType(workType: string, lang: Language): boolean {
     const workTypes = this.i18nService
@@ -305,39 +286,60 @@ export class BotMainUpdate {
       } catch (error) {
         console.error("Xabarni o'chirishda xato:", error);
       }
-
-      if (this.botAdminService.isAdmin(userId)) {
-        await this.showAdminMainMenu(ctx, selectedLang);
-      } else {
-        await this.showMainMenu(ctx, selectedLang);
-      }
+      await this.showMainMenu(ctx, selectedLang);
     }
   }
 
   // ===== ASOSIY MENYU =====
   private async showMainMenu(@Ctx() ctx: Context, lang: Language) {
-    await ctx.reply(this.t(lang, 'welcome'), {
-      reply_markup: {
-        keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy')]],
-        resize_keyboard: true,
-        one_time_keyboard: true,
-      },
-    });
-  }
-
-  // ===== ADMIN ASOSIY MENYU =====
-  private async showAdminMainMenu(@Ctx() ctx: Context, lang: Language) {
-    await ctx.reply(this.t(lang, 'admin_panel'), {
-      reply_markup: {
-        keyboard: [
-          [this.t(lang, 'pending_posts')],
-          [this.t(lang, 'statistics'), this.t(lang, 'admins')],
-          [this.t(lang, 'add_admin')],
-          [this.t(lang, 'back_to_main')],
-        ],
-        resize_keyboard: true,
-      },
-    });
+    const dto = { telegram_id: String(ctx.chat?.id) };
+    try {
+      const user = await this.userService.getAdmin(dto);
+      if (ctx.chat?.type === 'private') {
+        if (
+          user.statusCode &&
+          `${user.statusCode}`.startsWith('2') &&
+          user.data.role === Roles.ADMIN
+        ) {
+          await ctx.reply(this.t(lang, 'admin_panel'), {
+            reply_markup: {
+              keyboard: [
+                [this.t(lang, 'pending_posts')],
+                [this.t(lang, 'statistics'), this.t(lang, 'admins')],
+                [this.t(lang, 'add_admin')],
+                [this.t(lang, 'back_to_main')],
+              ],
+              resize_keyboard: true,
+            },
+          });
+        } else {
+          await ctx.reply(this.t(lang, 'welcome'), {
+            reply_markup: {
+              keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy')]],
+              resize_keyboard: true,
+              one_time_keyboard: true,
+            },
+          });
+        }
+      } else if (
+        ctx.chat?.type === 'group' ||
+        ctx.chat?.type === 'supergroup'
+      ) {
+        ctx.reply(
+          "Salom men Reztal botman. Ushbu guruhga postlarni tasdiqlash uchun jo'natib turaman",
+        );
+      }
+    } catch (error) {
+      console.error('showMainMenu xatosi: ', error);
+      await ctx.reply(this.t(lang, 'welcome'), {
+        reply_markup: {
+          keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy')]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      });
+    }
+    const user = await this.userService.getAdmin(dto);
   }
 
   // ===== MESSAGE HANDLER =====
@@ -374,27 +376,6 @@ export class BotMainUpdate {
         },
       );
       return;
-    }
-
-    // 🆕 ADMIN TEKSHIRISH VA YO'NALTIRISH
-    if (this.botAdminService.isAdmin(userId)) {
-      const adminState = this.botAdminService.getAdminState(chatId);
-      if (adminState) {
-        await this.handleAdminFlow(ctx, msg, adminState, chatId, userLang);
-        return;
-      }
-
-      // Admin asosiy menyusi
-      if ('text' in msg && msg.text) {
-        // Agar user asosiy menyuga qaytmoqchi bo'lsa
-        if (msg.text === this.t(userLang, 'back_to_main')) {
-          await this.showMainMenu(ctx, userLang);
-          return;
-        }
-
-        await this.handleAdminMainMenu(ctx, msg.text, chatId, userLang);
-        return;
-      }
     }
 
     // ===== ASOSIY MENYU TANLOVLARI =====
@@ -471,13 +452,6 @@ export class BotMainUpdate {
       await this.handleVacancyFlow(ctx, msg, vacancyState, chatId, userLang);
       return;
     }
-
-    // ===== HECH QANDAY STATE YO'Q BO'LSA =====
-    if (this.botAdminService.isAdmin(userId)) {
-      await this.showAdminMainMenu(ctx, userLang);
-    } else {
-      await this.showMainMenu(ctx, userLang);
-    }
   }
 
   // ===== VAKANSIYA FLOW =====
@@ -488,6 +462,9 @@ export class BotMainUpdate {
     chatId: string,
     lang: Language,
   ) {
+    console.log('=== VACANCY FLOW ===');
+    console.log('Current step:', state.step);
+
     // ===== CONFIRMATION MODE =====
     if (state.confirmationMode) {
       if ('text' in msg && msg.text) {
@@ -555,20 +532,11 @@ export class BotMainUpdate {
       }
       return;
     }
-    
+
     // ===== EDIT MODE =====
     if (state.editMode) {
       if ('text' in msg && msg.text) {
-        console.log('\n🔍 === VACANYC EDIT MODE HANDLER ===');
-        console.log('Message text:', msg.text);
-        console.log('Language:', lang);
-        console.log('State editMode:', state.editMode);
-        console.log('State editingField:', state.editingField);
-        const confirmationButton = `${this.t(lang, 'confirmation')}`
-        console.log('Confirmation button text:', confirmationButton);
-        console.log('Is confirmation?', msg.text === confirmationButton);
-        if (msg.text === confirmationButton) {
-          console.log('✅ User pressed confirmation - exiting edit mode');
+        if (msg.text === this.t(lang, 'confirmation')) {
           state.editMode = false;
           state.confirmationMode = true;
           await this.showVacancyConfirmation(ctx, state.answers, lang);
@@ -586,13 +554,10 @@ export class BotMainUpdate {
           [this.t(lang, 'edit_fields.vacancy').split(', ')[7]]: 8,
         };
 
-        console.log("FieldMap: ", fieldMap)
-
         if (fieldMap[msg.text]) {
           state.editingField = fieldMap[msg.text];
           state.editMode = false;
 
-        console.log("FieldMap[msg.text]", state.editingField)
           // ===== MAXSUS FIELD LAR UCHUN TO'GRIDAN-TO'G'RI KEYBOARD =====
           if (state.editingField === 3) {
             // Hudud
@@ -644,7 +609,7 @@ export class BotMainUpdate {
           .getKeyboard(lang, 'regions')
           .keyboard.flat();
 
-        // Hududni tekshirish (buttonlardagi variantlarni qabul qilish)
+        // Hududni tekshirish
         if (this.isValidRegion(text, lang)) {
           state.answers[field] = text;
           state.editingField = null;
@@ -653,7 +618,6 @@ export class BotMainUpdate {
           return;
         }
 
-        // Agar user buttonlardan boshqa narsa yozsa
         await ctx.reply(this.t(lang, 'errors.region_invalid'), {
           reply_markup: this.botVacancyService.getKeyboard(lang, 'regions'),
         });
@@ -667,7 +631,6 @@ export class BotMainUpdate {
           .getKeyboard(lang, 'work_types')
           .keyboard.flat();
 
-        // Ish turini tekshirish
         if (this.isValidWorkType(text, lang)) {
           state.answers[field] = text;
           state.editingField = null;
@@ -676,7 +639,6 @@ export class BotMainUpdate {
           return;
         }
 
-        // Agar user buttonlardan boshqa narsa yozsa
         await ctx.reply(this.t(lang, 'errors.work_type_invalid'), {
           reply_markup: this.botVacancyService.getKeyboard(lang, 'work_types'),
         });
@@ -694,7 +656,6 @@ export class BotMainUpdate {
         }
 
         if (phone) {
-          // Telefon raqamini tekshirish
           const validation = this.isValidPhone(phone, lang);
           if (!validation.isValid) {
             await ctx.reply(validation.message!, {
@@ -703,7 +664,6 @@ export class BotMainUpdate {
             return;
           }
 
-          // Telefonni formatlash
           state.answers[field] = this.formatPhone(phone);
           state.editingField = null;
           state.editMode = true;
@@ -719,9 +679,7 @@ export class BotMainUpdate {
 
       // ===== MAOSH FIELD =====
       if (field === 5) {
-        // Maosh
         if ('text' in msg && msg.text) {
-          // Maoshni tekshirish
           const validation = this.isValidSalary(msg.text, lang);
           if (!validation.isValid) {
             await ctx.reply(validation.message!);
@@ -738,11 +696,9 @@ export class BotMainUpdate {
 
       // ===== USERNAME FIELD =====
       if (field === 7) {
-        // Username
         if ('text' in msg && msg.text) {
           const username = msg.text.trim();
 
-          // Username ni tekshirish
           if (!username.startsWith('@')) {
             await ctx.reply(this.t(lang, 'errors.username_invalid'));
             return;
@@ -773,150 +729,14 @@ export class BotMainUpdate {
       return;
     }
 
-    // ===== NORMAL FLOW =====
-    const step = state.step;
-
-    // ===== 3-QADAM — HUDUD TANLASH =====
-    if (step === 3) {
-      const text = 'text' in msg ? msg.text : '';
-      const validRegions = this.botVacancyService
-        .getKeyboard(lang, 'regions')
-        .keyboard.flat();
-
-      // Hududni tekshirish (buttonlardagi variantlarni qabul qilish)
-      if (text && this.isValidRegion(text, lang)) {
-        state.answers[3] = text;
-        state.step = 4;
-
-        await ctx.reply(this.t(lang, 'vacancy_questions')[3], {
-          reply_markup: this.botVacancyService.getKeyboard(lang, 'work_types'),
-        });
-        return;
-      }
-
-      // Agar user buttonlardan boshqa narsa yozsa
-      await ctx.reply(this.t(lang, 'errors.region_invalid'), {
-        reply_markup: this.botVacancyService.getKeyboard(lang, 'regions'),
-      });
-      return;
-    }
-
-    // ===== 4-QADAM — ISH TURI TANLASH =====
-    if (step === 4) {
-      const text = 'text' in msg ? msg.text : '';
-      const validWorkTypes = this.botVacancyService
-        .getKeyboard(lang, 'work_types')
-        .keyboard.flat();
-
-      // Ish turini tekshirish
-      if (text && this.isValidWorkType(text, lang)) {
-        state.answers[4] = text;
-        state.step = 5;
-
-        // MAOSH QADAMI - MENU CHIQARILADI
-        await ctx.reply(this.t(lang, 'vacancy_questions')[4], {
-          reply_markup: { remove_keyboard: true },
-        });
-        return;
-      }
-
-      // Agar user buttonlardan boshqa narsa yozsa
-      await ctx.reply(this.t(lang, 'errors.work_type_invalid'), {
-        reply_markup: this.botVacancyService.getKeyboard(lang, 'work_types'),
-      });
-      return;
-    }
-
-    // ===== 5-QADAM — MAOSH =====
-    if (step === 5) {
-      const text = 'text' in msg ? msg.text : '';
-      if (text) {
-        // Maoshni tekshirish
-        const validation = this.isValidSalary(text, lang);
-        if (!validation.isValid) {
-          await ctx.reply(validation.message!);
-          return;
-        }
-
-        state.answers[5] = text;
-        state.step = 6;
-
-        await ctx.reply(this.t(lang, 'vacancy_questions')[5], {
-          reply_markup: { remove_keyboard: true },
-        });
-        return;
-      }
-    }
-
-    // ===== 7-QADAM — USERNAME =====
-    if (step === 7) {
-      const text = 'text' in msg ? msg.text : '';
-      if (text) {
-        // Username ni tekshirish
-        const username = text.trim();
-
-        if (!username.startsWith('@')) {
-          await ctx.reply(this.t(lang, 'errors.username_invalid'));
-          return;
-        }
-
-        if (username.length < 2) {
-          await ctx.reply(this.t(lang, 'errors.username_invalid'));
-          return;
-        }
-
-        state.answers[7] = username;
-        state.step = 8;
-
-        // TELEFON QADAMI - RAQAM ULASHISH TUGMASI CHIQADI
-        await ctx.reply(this.t(lang, 'vacancy_questions')[7], {
-          reply_markup: this.botVacancyService.getKeyboard(lang, 'phone'),
-        });
-        return;
-      }
-
-      await ctx.reply(this.t(lang, 'errors.username_invalid'));
-      return;
-    }
-
-    // ===== 8-QADAM — TELEFON RAQAM =====
-    if (step === 8) {
-      let phone = '';
-
-      if ('contact' in msg && msg.contact) {
-        phone = msg.contact.phone_number;
-      } else if ('text' in msg && msg.text) {
-        phone = msg.text;
-      }
-
-      if (phone) {
-        // Telefon raqamini tekshirish
-        const validation = this.isValidPhone(phone, lang);
-        if (!validation.isValid) {
-          await ctx.reply(validation.message!, {
-            reply_markup: this.botVacancyService.getKeyboard(lang, 'phone'),
-          });
-          return;
-        }
-
-        // Telefonni formatlash
-        state.answers[8] = this.formatPhone(phone);
-        state.confirmationMode = true;
-        await this.showVacancyConfirmation(ctx, state.answers, lang);
-        return;
-      }
-
-      await ctx.reply(this.t(lang, 'errors.phone_invalid'), {
-        reply_markup: this.botVacancyService.getKeyboard(lang, 'phone'),
-      });
-      return;
-    }
-
-    // ===== QOLGAN QADAMLAR (1-2, 6) =====
+    // ===== NORMAL FLOW - BARCHA QADAMLAR BotVacancyService ORQALI =====
     const result = await this.botVacancyService.handleEmployerAnswer(
       chatId,
       msg,
     );
+
+    console.log('Result from BotVacancyService:', result);
+
     if (!result) return;
 
     if (typeof result === 'string') {
@@ -935,25 +755,16 @@ export class BotMainUpdate {
         return;
       }
 
-      if (result === 'step8') {
-        await ctx.reply(this.t(lang, 'vacancy_questions')[7], {
-          reply_markup: this.botVacancyService.getKeyboard(lang, 'phone'),
-        });
-        return;
-      }
-
       await ctx.reply(this.t(lang, result), {
         reply_markup: { remove_keyboard: true },
       });
       return;
     } else if (result.message) {
-      // 🔴 YANGI: Agar message obyekti qaytgan bo'lsa
       await ctx.reply(result.message, {
         reply_markup: result.keyboard || { remove_keyboard: true },
       });
       return;
     } else if (result.confirmation) {
-      // Confirmation mode ga o'tish
       state.confirmationMode = true;
       state.answers = result.answers;
       await this.showVacancyConfirmation(ctx, result.answers, lang);
@@ -962,276 +773,226 @@ export class BotMainUpdate {
   }
 
   // ===== ADMIN FLOW LARI =====
-  private async handleAdminFlow(
-    @Ctx() ctx: Context,
-    msg: any,
-    state: any,
-    chatId: string,
-    lang: Language,
-  ) {
-    if (state.mode === 'awaiting_new_admin') {
-      await this.handleAdminAdd(ctx, msg, state, chatId, lang);
-      return;
-    }
+  // private async handleAdminFlow(
+  //   @Ctx() ctx: Context,
+  //   msg: any,
+  //   state: any,
+  //   chatId: string,
+  //   lang: Language,
+  // ) {
+  //   // if (state.mode === 'awaiting_new_admin') {
+  //   //   await this.handleAdminAdd(ctx, msg, state, chatId, lang);
+  //   //   return;
+  //   // }
 
-    if (state.mode === 'awaiting_edit_post') {
-      await this.handleAdminPostEdit(ctx, msg, state, chatId, lang);
-      return;
-    }
+  //   if (state.mode === 'awaiting_edit_post') {
+  //     await this.handleAdminPostEdit(ctx, msg, state, chatId, lang);
+  //     return;
+  //   }
 
-    if (state.mode === 'awaiting_reject_reason') {
-      await this.handleAdminRejectReason(ctx, msg, state, chatId, lang);
-      return;
-    }
-  }
+  //   if (state.mode === 'awaiting_reject_reason') {
+  //     await this.handleAdminRejectReason(ctx, msg, state, chatId, lang);
+  //     return;
+  //   }
+  // }
 
   // ===== ADMIN ASOSIY MENYU =====
-  private async handleAdminMainMenu(
-    @Ctx() ctx: Context,
-    text: string,
-    chatId: string,
-    lang: Language,
-  ) {
-    switch (text) {
-      case this.t(lang, 'pending_posts'):
-        const pendingPosts = await this.botAdminService.getPendingPosts();
-        if (pendingPosts.length === 0) {
-          await ctx.reply(this.t(lang, 'admin.no_pending_posts'));
-        } else {
-          let message = this.t(lang, 'admin.pending_posts_list');
-          pendingPosts.forEach((post, index) => {
-            message += `${index + 1}. ${post.type === 'rezume' ? 'REZYUME' : 'VAKANSIYA'} - ID: ${post.id}\n`;
-            message += `   👤 ${this.t(lang, 'user')}: @${post.userInfo?.username || this.t(lang, 'unknown')}\n`;
-            message += `   🕐 ${this.t(lang, 'date')}: ${post.createdAt.toLocaleDateString()}\n\n`;
-          });
-          await ctx.reply(message);
-        }
-        break;
+  // private async handleAdminMainMenu(
+  //   @Ctx() ctx: Context,
+  //   text: string,
+  //   chatId: string,
+  //   lang: Language,
+  // ) {
+  //   switch (text) {
+  //     case this.t(lang, 'pending_posts'):
+  //       const pendingPosts = await this.botAdminService.getPendingPosts();
+  //       if (pendingPosts.length === 0) {
+  //         await ctx.reply(this.t(lang, 'admin.no_pending_posts'));
+  //       } else {
+  //         let message = this.t(lang, 'admin.pending_posts_list');
+  //         pendingPosts.forEach((post, index) => {
+  //           message += `${index + 1}. ${post.type === 'rezume' ? 'REZYUME' : 'VAKANSIYA'} - ID: ${post.id}\n`;
+  //           message += `   👤 ${this.t(lang, 'user')}: @${post.userInfo?.username || this.t(lang, 'unknown')}\n`;
+  //           message += `   🕐 ${this.t(lang, 'date')}: ${post.createdAt.toLocaleDateString()}\n\n`;
+  //         });
+  //         await ctx.reply(message);
+  //       }
+  //       break;
 
-      case this.t(lang, 'statistics'):
-        const stats = await this.botAdminService.getStatistics();
-        const statsMessage = this.t(lang, 'admin.statistics', {
-          totalUsers: stats.totalUsers,
-          totalPosts: stats.totalPosts,
-          pendingPosts: stats.pendingPosts,
-          approvedPosts: stats.approvedPosts,
-          rejectedPosts: stats.rejectedPosts,
-          rezumePosts: stats.rezumePosts,
-          vacancyPosts: stats.vacancyPosts,
-        });
+  //     case this.t(lang, 'statistics'):
+  //       const stats = await this.botAdminService.getStatistics();
+  //       const statsMessage = this.t(lang, 'admin.statistics', {
+  //         totalUsers: stats.totalUsers,
+  //         totalPosts: stats.totalPosts,
+  //         pendingPosts: stats.pendingPosts,
+  //         approvedPosts: stats.approvedPosts,
+  //         rejectedPosts: stats.rejectedPosts,
+  //         rezumePosts: stats.rezumePosts,
+  //         vacancyPosts: stats.vacancyPosts,
+  //       });
 
-        await ctx.reply(statsMessage);
-        break;
+  //       await ctx.reply(statsMessage);
+  //       break;
 
-      case this.t(lang, 'admins'):
-        const admins = await this.botAdminService.getAllAdmins();
-        let adminList = this.t(lang, 'admin.admins_list');
-        admins.forEach((admin, index) => {
-          adminList += `${index + 1}. ID: ${admin.id}\n`;
-          adminList += `   ${this.t(lang, 'username')}: @${admin.username}\n`;
-          adminList += `   ${this.t(lang, 'phone')}: ${admin.phone || this.t(lang, 'not_provided')}\n`;
-          adminList += `   ${this.t(lang, 'joined')}: ${new Date(admin.joinedAt).toLocaleDateString()}\n\n`;
-        });
-        await ctx.reply(adminList);
-        break;
+  //     case this.t(lang, 'admins'):
+  //       const admins = await this.botAdminService.getAllAdmins();
+  //       let adminList = this.t(lang, 'admin.admins_list');
+  //       admins.forEach((admin, index) => {
+  //         adminList += `${index + 1}. ID: ${admin.id}\n`;
+  //         adminList += `   ${this.t(lang, 'username')}: @${admin.username}\n`;
+  //         adminList += `   ${this.t(lang, 'phone')}: ${admin.phone || this.t(lang, 'not_provided')}\n`;
+  //         adminList += `   ${this.t(lang, 'joined')}: ${new Date(admin.joinedAt).toLocaleDateString()}\n\n`;
+  //       });
+  //       await ctx.reply(adminList);
+  //       break;
 
-      case this.t(lang, 'add_admin'):
-        this.botAdminService.setAdminState(chatId, {
-          mode: 'awaiting_new_admin',
-        });
-        await ctx.reply(this.t(lang, 'admin.add_admin_instructions'));
-        break;
+  //     case this.t(lang, 'add_admin'):
+  //       this.botAdminService.setAdminState(chatId, {
+  //         mode: 'awaiting_new_admin',
+  //       });
+  //       await ctx.reply(this.t(lang, 'admin.add_admin_instructions'));
+  //       break;
 
-      case this.t(lang, 'back_to_main'):
-        await this.showMainMenu(ctx, lang);
-        break;
+  //     case this.t(lang, 'back_to_main'):
+  //       await this.showMainMenu(ctx, lang);
+  //       break;
 
-      default:
-        // Command larni tekshirish
-        if (text.startsWith('/approve_')) {
-          const postId = parseInt(text.replace('/approve_', ''));
-          await this.handleApproveCommand(ctx, postId, lang);
-          return;
-        }
+  //     default:
+  //       // Command larni tekshirish
+  //       if (text.startsWith('/approve_')) {
+  //         const postId = parseInt(text.replace('/approve_', ''));
+  //         await this.handleApproveCommand(ctx, postId, lang);
+  //         return;
+  //       }
 
-        if (text.startsWith('/reject_')) {
-          const parts = text.replace('/reject_', '').split('_');
-          const postId = parseInt(parts[0]);
-          this.botAdminService.setAdminState(chatId, {
-            mode: 'awaiting_reject_reason',
-            postId: postId,
-          });
-          await ctx.reply(
-            this.t(lang, 'admin.reject_reason_prompt', { postId }),
-          );
-          return;
-        }
+  //       if (text.startsWith('/reject_')) {
+  //         const parts = text.replace('/reject_', '').split('_');
+  //         const postId = parseInt(parts[0]);
+  //         this.botAdminService.setAdminState(chatId, {
+  //           mode: 'awaiting_reject_reason',
+  //           postId: postId,
+  //         });
+  //         await ctx.reply(
+  //           this.t(lang, 'admin.reject_reason_prompt', { postId }),
+  //         );
+  //         return;
+  //       }
 
-        if (text.startsWith('/edit_')) {
-          const postId = parseInt(text.replace('/edit_', ''));
-          this.botAdminService.setAdminState(chatId, {
-            mode: 'awaiting_edit_post',
-            postId: postId,
-          });
+  //       if (text.startsWith('/edit_')) {
+  //         const postId = parseInt(text.replace('/edit_', ''));
+  //         this.botAdminService.setAdminState(chatId, {
+  //           mode: 'awaiting_edit_post',
+  //           postId: postId,
+  //         });
 
-          const post = await this.botAdminService.getPostById(postId);
-          if (post) {
-            const fields = this.t(lang, `edit_fields.${post.type}`);
-            await ctx.reply(
-              this.t(lang, 'admin.edit_post_instructions', {
-                postId: postId,
-                fields: fields,
-              }),
-            );
-          }
-          return;
-        }
+  //         const post = await this.botAdminService.getPostById(postId);
+  //         if (post) {
+  //           const fields = this.t(lang, `edit_fields.${post.type}`);
+  //           await ctx.reply(
+  //             this.t(lang, 'admin.edit_post_instructions', {
+  //               postId: postId,
+  //               fields: fields,
+  //             }),
+  //           );
+  //         }
+  //         return;
+  //       }
 
-        await this.showAdminMainMenu(ctx, lang);
-    }
-  }
+  //       await this.showAdminMainMenu(ctx, lang);
+  //   }
+  // }
 
   // ===== POST TASDIQLASH =====
-  private async handleApproveCommand(
-    ctx: Context,
-    postId: number,
-    lang: Language,
-  ) {
-    const result = await this.botAdminService.approvePost(postId, ctx.telegram);
-    await ctx.reply(
-      this.t(
-        lang,
-        result.success ? 'admin.post_approved_success' : 'admin.post_not_found',
-      ),
-    );
-  }
-
-  // ===== ADMIN QO'SHISH (TELEFON RAQAM VA USERNAME ORQALI) =====
-  private async handleAdminAdd(
-    @Ctx() ctx: Context,
-    msg: any,
-    state: any,
-    chatId: string,
-    lang: Language,
-  ) {
-    if ('text' in msg && msg.text) {
-      const input = msg.text.trim();
-
-      // Format: telefon_raqam username
-      const parts = input.split(' ');
-
-      if (parts.length < 2) {
-        await ctx.reply(this.t(lang, 'admin.add_admin_instructions'));
-        return;
-      }
-
-      const phone = parts[0];
-      const username = parts.slice(1).join(' ').replace('@', '');
-
-      // Telefon raqamni tekshirish
-      const phoneValidation = this.isValidPhone(phone, lang);
-      if (!phoneValidation.isValid) {
-        await ctx.reply(phoneValidation.message!);
-        return;
-      }
-
-      // Telefon raqamni formatlash
-      const formattedPhone = this.formatPhone(phone);
-
-      const result = await this.botAdminService.addAdminByPhone(
-        formattedPhone,
-        username,
-        ctx.from?.id.toString() || '0',
-      );
-
-      await ctx.reply(
-        this.t(
-          lang,
-          result.success ? 'admin.admin_added_success' : 'admin.admin_exists',
-          { username },
-        ),
-      );
-      this.botAdminService.deleteAdminState(chatId);
-      await this.showAdminMainMenu(ctx, lang);
-    }
-  }
+  // private async handleApproveCommand(
+  //   ctx: Context,
+  //   postId: number,
+  //   lang: Language,
+  // ) {
+  //   const result = await this.botAdminService.approvePost(postId, ctx.telegram);
+  //   await ctx.reply(
+  //     this.t(
+  //       lang,
+  //       result.success ? 'admin.post_approved_success' : 'admin.post_not_found',
+  //     ),
+  //   );
+  // }
 
   // ===== POST TAHRILLASH =====
-  private async handleAdminPostEdit(
-    @Ctx() ctx: Context,
-    msg: any,
-    state: any,
-    chatId: string,
-    lang: Language,
-  ) {
-    if ('text' in msg && msg.text) {
-      const text = msg.text;
-      const postId = state.postId;
+  // private async handleAdminPostEdit(
+  //   @Ctx() ctx: Context,
+  //   msg: any,
+  //   state: any,
+  //   chatId: string,
+  //   lang: Language,
+  // ) {
+  //   if ('text' in msg && msg.text) {
+  //     const text = msg.text;
+  //     const postId = state.postId;
 
-      // Format: field_number: yangi qiymat
-      const match = text.match(/^(\d+):\s*(.+)$/);
-      if (!match) {
-        await ctx.reply(
-          this.t(lang, 'admin.edit_post_instructions', {
-            postId: postId,
-            fields: '',
-          }),
-        );
-        return;
-      }
+  //     // Format: field_number: yangi qiymat
+  //     const match = text.match(/^(\d+):\s*(.+)$/);
+  //     if (!match) {
+  //       await ctx.reply(
+  //         this.t(lang, 'admin.edit_post_instructions', {
+  //           postId: postId,
+  //           fields: '',
+  //         }),
+  //       );
+  //       return;
+  //     }
 
-      const field = parseInt(match[1]);
-      const value = match[2].trim();
+  //     const field = parseInt(match[1]);
+  //     const value = match[2].trim();
 
-      const result = await this.botAdminService.editPost(postId, field, value);
+  //     const result = await this.botAdminService.editPost(postId, field, value);
 
-      if (result.success) {
-        await ctx.reply(
-          this.t(lang, 'admin.post_edited_success', {
-            postId: postId,
-            field: field,
-            value: value,
-          }),
-        );
-      } else {
-        await ctx.reply(this.t(lang, 'admin.post_not_found'));
-      }
+  //     if (result.success) {
+  //       await ctx.reply(
+  //         this.t(lang, 'admin.post_edited_success', {
+  //           postId: postId,
+  //           field: field,
+  //           value: value,
+  //         }),
+  //       );
+  //     } else {
+  //       await ctx.reply(this.t(lang, 'admin.post_not_found'));
+  //     }
 
-      this.botAdminService.deleteAdminState(chatId);
-      await this.showAdminMainMenu(ctx, lang);
-    }
-  }
+  //     this.botAdminService.deleteAdminState(chatId);
+  //     await this.showAdminMainMenu(ctx, lang);
+  //   }
+  // }
 
   // ===== POST RAD ETISH SABABI =====
-  private async handleAdminRejectReason(
-    @Ctx() ctx: Context,
-    msg: any,
-    state: any,
-    chatId: string,
-    lang: Language,
-  ) {
-    if ('text' in msg && msg.text) {
-      const reason = msg.text;
-      const postId = state.postId;
+  // private async handleAdminRejectReason(
+  //   @Ctx() ctx: Context,
+  //   msg: any,
+  //   state: any,
+  //   chatId: string,
+  //   lang: Language,
+  // ) {
+  //   if ('text' in msg && msg.text) {
+  //     const reason = msg.text;
+  //     const postId = state.postId;
 
-      const result = await this.botAdminService.rejectPost(
-        postId,
-        reason,
-        ctx.telegram,
-      );
+  //     const result = await this.botAdminService.rejectPost(
+  //       postId,
+  //       reason,
+  //       ctx.telegram,
+  //     );
 
-      await ctx.reply(
-        this.t(
-          lang,
-          result.success
-            ? 'admin.post_rejected_success'
-            : 'admin.post_not_found',
-        ),
-      );
-      this.botAdminService.deleteAdminState(chatId);
-      await this.showAdminMainMenu(ctx, lang);
-    }
-  }
+  //     await ctx.reply(
+  //       this.t(
+  //         lang,
+  //         result.success
+  //           ? 'admin.post_rejected_success'
+  //           : 'admin.post_not_found',
+  //       ),
+  //     );
+  //     this.botAdminService.deleteAdminState(chatId);
+  //     await this.showAdminMainMenu(ctx, lang);
+  //   }
+  // }
 
   // ===== ISH KERAK FLOW =====
   private async handleRezumeFlow(
@@ -1263,12 +1024,23 @@ export class BotMainUpdate {
               telegram_id: chatId,
             };
 
+            console.log('User data:  ', userData);
+
             const userCreateResponse =
               await this.userService.createCandidate(userData);
+
+            console.log('User create response: ', userCreateResponse);
 
             if (!`${userCreateResponse.statusCode}`.startsWith('2')) {
               return 'Error on creating user';
             }
+
+            const result = await this.botRezumeService.generateImage(
+              formattedAnswers,
+              state.gender,
+            );
+
+            console.log('Result img path', result.imagePath);
 
             const resumeData = {
               sub_category: String(state.answers[1]),
@@ -1281,17 +1053,13 @@ export class BotMainUpdate {
               portfolio: String(state.answers[10]),
               telegram_username: String(state.answers[13]),
               user_id: userCreateResponse.data.id,
+              image_path: result.imagePath,
             };
 
             const createResume =
               await this.jobPostsService.createResume(resumeData);
 
             console.log(createResume.message);
-
-            const result = await this.botRezumeService.generateImage(
-              formattedAnswers,
-              state.gender,
-            );
 
             const post = await this.botAdminService.addPost({
               type: 'rezume',
@@ -1308,10 +1076,17 @@ export class BotMainUpdate {
               status: 'pending',
             });
 
-            await this.botAdminService.notifyAdminAboutNewPost(
-              post,
-              ctx.telegram,
-            );
+            const notifyResult =
+              await this.botAdminService.notifyAdminAboutNewPost(
+                post,
+                ctx.telegram,
+              );
+
+            const dto = {
+              job_posts_id: createResume.data.id,
+              message_id: notifyResult,
+            };
+            await this.jobPostsTelegramService.createPostForGroup(dto);
 
             await ctx.replyWithPhoto(
               { source: result.imagePath },
@@ -1335,7 +1110,6 @@ export class BotMainUpdate {
           }
         }
 
-        // ======= Edit mode =========
         if (msg.text === this.t(lang, 'edit')) {
           state.confirmationMode = false;
           state.editMode = true;
@@ -1349,15 +1123,7 @@ export class BotMainUpdate {
     // ===== EDIT MODE =====
     if (state.editMode) {
       if ('text' in msg && msg.text) {
-        console.log('\n🔍 === REZUME EDIT MODE HANDLER ===');
-        console.log('Message text: ', msg.text);
-        console.log('State editMode:', state.editMode);
-        console.log('State editingField:', state.editingField);
-        const rezumeConfirmationButton = `${this.t(lang, 'confirmation')}`;
-        console.log('Rezume confirmation button: ', rezumeConfirmationButton);
-        console.log('Is confirmation?', msg.text === rezumeConfirmationButton);
-        if (msg.text.includes(rezumeConfirmationButton)) {
-          console.log('✅ User pressed confirmation - exiting edit mode');
+        if (msg.text === this.t(lang, 'confirmation')) {
           state.editMode = false;
           state.confirmationMode = true;
           await this.showRezumeConfirmation(
@@ -1369,49 +1135,24 @@ export class BotMainUpdate {
           return;
         }
 
-        const labels = this.t(lang, 'edit_fields.rezume').split('');
-
-        // const fieldMap = {
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[0]]: 1,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[1]]: 3,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[2]]: 4,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[3]]: 5,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[4]]: 6,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[5]]: 7,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[6]]: 8,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[7]]: 9,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[8]]: 10,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[9]]: 11,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[10]]: 12,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[11]]: 13,
-        // };
-
         const fieldMap = {
-          1: 1,
-          2: 3,
-          3: 4,
-          4: 5,
-          5: 6,
-          6: 7,
-          7: 8,
-          8: 9,
-          9: 10,
-          10: 11,
-          11: 12,
-          12: 13,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[0]]: 1,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[1]]: 3,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[2]]: 4,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[3]]: 5,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[4]]: 6,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[5]]: 7,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[6]]: 8,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[7]]: 9,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[8]]: 10,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[9]]: 11,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[10]]: 12,
+          [this.t(lang, 'edit_fields.rezume').split(', ')[11]]: 13,
         };
 
-        // 🔹 Normalize: "1. Kasb" → 1, "Kasb"
-        const match = msg.text.match(/^(\d+)[\.:]?\s*(.*)$/);
-
-        const index = parseInt(match[1], 10);
-        const textPart = match[2].trim();
-
-        if (fieldMap[index]) {
-          state.editingField = fieldMap[index];
+        if (fieldMap[msg.text]) {
+          state.editingField = fieldMap[msg.text];
           state.editMode = false;
-
-          console.log('Field map [msg.text]: ', state.editingField);
 
           if (state.editingField === 7) {
             await ctx.reply(this.t(lang, 'rezume_questions')[6], {
@@ -1450,12 +1191,6 @@ export class BotMainUpdate {
           });
           return;
         }
-        else {
-          console.log('Raqam fieldMap topilmadi')
-        }
-      }
-      else {
-        console.log("Msg.text regex bilan match bo'lmadi")
       }
       return;
     }
@@ -1797,72 +1532,93 @@ export class BotMainUpdate {
   // ===== CALLBACK QUERY HANDLER - Post amallari =====
   @Action(/approve_|reject_|edit_/)
   async handlePostAction(@Ctx() ctx: Context) {
+    console.log('Callback query received');
+
     const callbackQuery = ctx.callbackQuery;
     if (!callbackQuery || !('data' in callbackQuery)) return;
 
     const data = callbackQuery.data;
     const adminId = ctx.from?.id.toString();
-    const lang = this.userLanguageService.getUserLanguage(adminId || '');
+    const lang = Language.UZ;
 
-    // Faqat admin lar ishlata olishi
-    if (!adminId || !this.botAdminService.isAdmin(adminId)) {
-      await ctx.answerCbQuery(this.t(lang, 'errors.required'));
-      return;
-    }
+    try {
+      // Original message ni olish callback query dan
+      const message = ctx.callbackQuery?.message;
 
-    if (data.startsWith('approve_')) {
-      const postId = parseInt(data.replace('approve_', ''));
-      const result = await this.botAdminService.approvePost(
-        postId,
-        ctx.telegram,
-      );
-
-      // Postni botdan o'chirish (kanalda post bor bo'lsa ham)
-      try {
-        if (result.messageId && result.channelId) {
-          // Kanaldagi postni o'chirish
-          await ctx.telegram.deleteMessage(result.channelId, result.messageId);
-        }
-
-        // Botdagi post xabarini o'chirish
-        await ctx.deleteMessage();
-
-        await ctx.answerCbQuery(this.t(lang, 'admin.post_approved_success'));
-      } catch (error) {
-        console.error("Post o'chirishda xatolik:", error);
-        await ctx.answerCbQuery(this.t(lang, 'admin.post_approved_success'));
+      if (!message || !('message_id' in message)) {
+        console.error('Message not found in callback query');
+        await ctx.answerCbQuery(this.t(lang, 'errors.message_not_found'));
+        return;
       }
-    } else if (data.startsWith('reject_')) {
-      const postId = parseInt(data.replace('reject_', ''));
 
-      // Admin dan sabab so'rash
-      await ctx.reply(this.t(lang, 'admin.reject_reason_prompt', { postId }));
-      this.botAdminService.setAdminState(adminId, {
-        mode: 'awaiting_reject_reason',
-        postId: postId,
-      });
+      const messageId = message.message_id;
+      console.log('Message id: ', messageId);
 
-      await ctx.answerCbQuery(this.t(lang, 'edit_prompt'));
-    } else if (data.startsWith('edit_')) {
-      const postId = parseInt(data.replace('edit_', ''));
-
-      const post = await this.botAdminService.getPostById(postId);
-      if (post) {
-        const fields = this.t(lang, `edit_fields.${post.type}`);
-        await ctx.reply(
-          this.t(lang, 'admin.edit_post_instructions', {
-            postId: postId,
-            fields: fields,
-          }),
+      if (data.startsWith('approve_')) {
+        const result = await this.botAdminService.approvePost(
+          messageId,
+          ctx.telegram,
         );
 
-        this.botAdminService.setAdminState(adminId, {
-          mode: 'awaiting_edit_post',
-          postId: postId,
-        });
-      }
+        try {
+          // Botdagi post xabarini o'chirish
+          // await ctx.deleteMessage();
 
-      await ctx.answerCbQuery(this.t(lang, 'edit_prompt'));
+          await ctx.answerCbQuery(this.t(lang, 'admin.post_approved_success'));
+        } catch (error) {
+          console.error("Post o'chirishda xatolik:", error);
+          await ctx.answerCbQuery(this.t(lang, 'admin.post_approved_success'));
+        }
+      }
+      // else if (data.startsWith('reject_')) {
+      //   // Data dan postId ni olish
+      //   const match = data.match(/reject_(\d+)/);
+      //   const postId = match ? parseInt(match[1]) : null;
+
+      //   if (!postId) {
+      //     await ctx.answerCbQuery(this.t(lang, 'errors.invalid_post_id'));
+      //     return;
+      //   }
+
+      //   // Admin dan sabab so'rash
+      //   await ctx.reply(this.t(lang, 'admin.reject_reason_prompt', { postId }));
+      //   this.botAdminService.setAdminState(adminId, {
+      //     mode: 'awaiting_reject_reason',
+      //     postId: postId,
+      //   });
+
+      //   await ctx.answerCbQuery(this.t(lang, 'edit_prompt'));
+      // } else if (data.startsWith('edit_')) {
+      //   // Data dan postId ni olish
+      //   const match = data.match(/edit_(\d+)/);
+      //   const postId = match ? parseInt(match[1]) : null;
+
+      //   if (!postId) {
+      //     await ctx.answerCbQuery(this.t(lang, 'errors.invalid_post_id'));
+      //     return;
+      //   }
+
+      //   const post = await this.botAdminService.getPostById(postId);
+      //   if (post) {
+      //     const fields = this.t(lang, `edit_fields.${post.type}`);
+      //     await ctx.reply(
+      //       this.t(lang, 'admin.edit_post_instructions', {
+      //         postId: postId,
+      //         fields: fields,
+      //       }),
+      //     );
+
+      //     this.botAdminService.setAdminState(adminId, {
+      //       mode: 'awaiting_edit_post',
+      //       postId: postId,
+      //     });
+      //   }
+
+      //   await ctx.answerCbQuery(this.t(lang, 'edit_prompt'));
+      // }
+    } catch (error) {
+      console.error('Error in handlePostAction:', error);
+      await ctx.answerCbQuery(this.t(lang, 'errors.general'));
     }
   }
 }
