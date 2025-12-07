@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { BotRezumeService } from '../bot-rezume/bot.rezume.service';
-import { BotMainUpdate } from '../bot.main.update';
+import { BotRezumeService } from '../../bot-rezume/rezume/bot.rezume.service';
+import { BotMainUpdate } from '../../bot.main.update';
 import { UserService } from 'src/api/user/user.service';
 import { JobPostsService } from 'src/api/job-posts/job-posts.service';
 import { UserEntity } from 'src/core/entity/user.entity';

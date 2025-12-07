@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { BotAdminService } from './bot/bot-admin/bot.admin.service';
-import { BotRezumeService } from './bot/bot-rezume/bot.rezume.service';
 import { BotMainUpdate } from './bot/bot.main.update';
-import { BotVacancyService } from './bot/bot-vacancy/bot.service';
 import { UserModule } from './user/user.module';
 import config from 'src/config';
 import { LoggerModule } from 'src/logger/logger.module';
@@ -16,6 +14,8 @@ import { TasksModule } from './tasks/tasks.module';
 import { UserTasksModule } from './user-tasks/user-tasks.module';
 import { ChannelGroupModule } from './channel-group/channel-group.module';
 import { JobPostsTelegramModule } from './job-posts-telegram/job-posts-telegram.module';
+import { BotRezumeService } from './bot/bot-rezume/rezume/bot.rezume.service';
+import { BotVacancyService } from './bot/bot-vacancy/vacancy/bot.service';
 
 @Module({
   imports: [

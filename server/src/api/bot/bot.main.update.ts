@@ -1,7 +1,7 @@
 import { Update, Start, On, Ctx, Action } from 'nestjs-telegraf';
 import { Context } from 'telegraf';
-import { BotRezumeService as BotRezumeService } from './bot-rezume/bot.rezume.service';
-import { BotVacancyService as BotVacancyService } from './bot-vacancy/bot.service';
+import { BotRezumeService as BotRezumeService } from '../bot/bot-rezume/rezume/bot.rezume.service';
+import { BotVacancyService as BotVacancyService } from '../bot/bot-vacancy/vacancy/bot.service';
 import { BotAdminService } from './bot-admin/bot.admin.service';
 
 // I18n service import qilish kerak

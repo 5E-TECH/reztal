@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createCanvas, loadImage } from 'canvas';
 import * as fs from 'fs';
 import * as path from 'path';
-import { I18nService } from '../../../i18n/i18n.service';
+import { I18nService } from '../../../../i18n/i18n.service';
 import { UserService } from 'src/api/user/user.service';
 import { JobPostsService } from 'src/api/job-posts/job-posts.service';
 import { JobCategoriesService } from 'src/api/job-categories/job-categories.service';
