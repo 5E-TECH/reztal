@@ -4,10 +4,15 @@ import { JobPostsController } from './job-posts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JobPostsEntity } from 'src/core/entity/job-posts.entity';
 import { SubCategoryTranslationEntity } from 'src/core/entity/sub_category_translation';
+import { UserEntity } from 'src/core/entity/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([JobPostsEntity, SubCategoryTranslationEntity]),
+    TypeOrmModule.forFeature([
+      JobPostsEntity,
+      SubCategoryTranslationEntity,
+      UserEntity,
+    ]),
   ],
   controllers: [JobPostsController],
   providers: [JobPostsService],
