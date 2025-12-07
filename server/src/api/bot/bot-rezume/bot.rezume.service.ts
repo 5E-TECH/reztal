@@ -6,7 +6,6 @@ import { I18nService } from '../../../i18n/i18n.service';
 import { UserService } from 'src/api/user/user.service';
 import { JobPostsService } from 'src/api/job-posts/job-posts.service';
 import { JobCategoriesService } from 'src/api/job-categories/job-categories.service';
-import { keyboard } from 'telegraf/markup';
 import { MyLogger } from 'src/logger/logger.service';
 import { Language } from 'src/common/enums';
 // import { Category_Interface } from '../common/interfaces';

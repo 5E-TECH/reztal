@@ -1136,21 +1136,6 @@ export class BotMainUpdate {
           return;
         }
 
-        // const fieldMap = {
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[0]]: 1,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[1]]: 3,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[2]]: 4,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[3]]: 5,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[4]]: 6,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[5]]: 7,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[6]]: 8,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[7]]: 9,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[8]]: 10,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[9]]: 11,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[10]]: 12,
-        //   [this.t(lang, 'edit_fields.rezume').split(', ')[11]]: 13,
-        // };
-
         const fieldMap = {
           1: 1,
           2: 3,
@@ -1174,6 +1159,16 @@ export class BotMainUpdate {
         if (fieldMap[index]) {
           state.editingField = fieldMap[index];
           state.editMode = false;
+
+          if (state.editingField === 1) {
+            await ctx.reply(
+              'Iltimos, quyidagi kategoriyalardan birini tanlang:',
+              {
+                reply_markup: this.i18nService.getCategoryKeyboard(lang),
+              },
+            );
+            return;
+          }
 
           if (state.editingField === 7) {
             await ctx.reply(this.t(lang, 'rezume_questions')[6], {
@@ -1219,6 +1214,91 @@ export class BotMainUpdate {
     // ===== FIELD EDITING =====
     if (state.editingField) {
       const field = state.editingField;
+      if (field === 1) {
+        if ('text' in msg && msg.text) {
+          const text = msg.text.trim();
+          const translation = this.i18nService.getTranslation(lang);
+          const categories = translation.category?.categories || [];
+
+          // === 1. ORQAGA TUGMASI ===
+          if (text === translation.category?.back) {
+            if (state.selectedCategory) {
+              delete state.selectedCategory;
+              await ctx.reply('Kasbingizni tanlang:', {
+                reply_markup: this.i18nService.getCategoryKeyboard(lang),
+              });
+              return;
+            }
+          }
+
+          // === 2. KATEGORIYA TANLASH ===
+          const category = categories.find((cat: any) => cat.name === text);
+
+          if (category && !state.selectedCategory) {
+            state.selectedCategory = category.name;
+
+            await ctx.reply(
+              `${category.name} kategoriyasidan pastagi mutaxassislikni tanlang:`,
+              {
+                reply_markup: this.i18nService.getSubCategoryKeyboard(
+                  lang,
+                  category.name,
+                ),
+              },
+            );
+            return;
+          }
+
+          // === 3. SUBKATEGORIYA TANLASH ===
+          if (state.selectedCategory) {
+            const currentCategory = categories.find(
+              (cat: any) => cat.name === state.selectedCategory,
+            );
+
+            // Subkategoriya tekshirish
+            if (
+              currentCategory &&
+              currentCategory.sub_categories &&
+              currentCategory.sub_categories.includes(text)
+            ) {
+              // Subkategoriyani saqlash
+              state.answers[1] = text;
+              state.answers.category = state.selectedCategory;
+
+              // Holatlarni tozalash
+              delete state.selectedCategory;
+              state.editingField = null;
+              state.editMode = true;
+
+              // Edit menyusiga qaytish
+              await this.showRezumeEditMenu(ctx, state.answers, lang);
+              return;
+            }
+
+            // Noto'g'ri subkategoriya kiritilganda
+            await ctx.reply(
+              `Iltimos, "${state.selectedCategory}" kategoriyasidan pastagi mutaxassislikni tanlang:`,
+              {
+                reply_markup: this.i18nService.getSubCategoryKeyboard(
+                  lang,
+                  state.selectedCategory,
+                ),
+              },
+            );
+            return;
+          }
+
+          // === 4. DEFAULT: KATEGORIYA TANLASH ===
+          await ctx.reply(
+            'Iltimos, kasbingizni quyidagi kategoriyalardan tanlang:',
+            {
+              reply_markup: this.i18nService.getCategoryKeyboard(lang),
+            },
+          );
+          return;
+        }
+        return;
+      }
 
       if (field === 7) {
         const text = 'text' in msg ? msg.text : '';
