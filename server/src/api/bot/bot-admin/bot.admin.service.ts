@@ -121,9 +121,8 @@ export class BotAdminService {
     );
 
     return {
-      success: true,
-      message: 'Post tasdiqlandi va kanalga yuborildi',
-      channel_message_id: sentMessage.message_id,
+      message_id: String(sentMessage.message_id),
+      job_posts_id: String(groupPost.data.id),
     };
   }
 

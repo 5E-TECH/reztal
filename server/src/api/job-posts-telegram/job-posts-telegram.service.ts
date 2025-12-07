@@ -112,6 +112,30 @@ export class JobPostsTelegramService {
     }
   }
 
+  async createPostForChannel(createPostTelegramDto: CreateJobPostsTelegramDto) {
+    try {
+      const { job_posts_id, message_id } = createPostTelegramDto;
+      const isExistJobPosts = await this.jobPostsRepo.findOne({
+        where: { id: job_posts_id },
+      });
+      if (!isExistJobPosts) {
+        throw new NotFoundException('Job post not found');
+      }
+
+      const newPostTelegram = this.jobPostTelegRepo.create({
+        chat_id: config.TELEGRAM_CHANNEL_ID,
+        chat_type: Chat_Type.CHANNEL,
+        job_posts_id,
+        message_id,
+      });
+      await this.jobPostTelegRepo.save(newPostTelegram);
+
+      return successRes({}, 201, 'Telegram post channel created');
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
   create(createJobPostsTelegramDto: CreateJobPostsTelegramDto) {
     return 'This action adds a new jobPostsTelegram';
   }
