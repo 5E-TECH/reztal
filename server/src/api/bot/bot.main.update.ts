@@ -1123,7 +1123,8 @@ export class BotMainUpdate {
     // ===== EDIT MODE =====
     if (state.editMode) {
       if ('text' in msg && msg.text) {
-        if (msg.text === this.t(lang, 'confirmation')) {
+        const rezumeConfirmationButton = `${this.t(lang, 'confirmation')}`;
+        if (msg.text.includes(rezumeConfirmationButton)) {
           state.editMode = false;
           state.confirmationMode = true;
           await this.showRezumeConfirmation(
@@ -1135,23 +1136,43 @@ export class BotMainUpdate {
           return;
         }
 
+        // const fieldMap = {
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[0]]: 1,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[1]]: 3,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[2]]: 4,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[3]]: 5,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[4]]: 6,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[5]]: 7,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[6]]: 8,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[7]]: 9,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[8]]: 10,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[9]]: 11,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[10]]: 12,
+        //   [this.t(lang, 'edit_fields.rezume').split(', ')[11]]: 13,
+        // };
+
         const fieldMap = {
-          [this.t(lang, 'edit_fields.rezume').split(', ')[0]]: 1,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[1]]: 3,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[2]]: 4,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[3]]: 5,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[4]]: 6,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[5]]: 7,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[6]]: 8,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[7]]: 9,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[8]]: 10,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[9]]: 11,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[10]]: 12,
-          [this.t(lang, 'edit_fields.rezume').split(', ')[11]]: 13,
+          1: 1,
+          2: 3,
+          3: 4,
+          4: 5,
+          5: 6,
+          6: 7,
+          7: 8,
+          8: 9,
+          9: 10,
+          10: 11,
+          11: 12,
+          12: 13,
         };
 
-        if (fieldMap[msg.text]) {
-          state.editingField = fieldMap[msg.text];
+        const match = msg.text.match(/^(\d+)[\.:]?\s*(.*)$/);
+
+        const index = parseInt(match[1], 10);
+        const textPart = match[2].trim();
+
+        if (fieldMap[index]) {
+          state.editingField = fieldMap[index];
           state.editMode = false;
 
           if (state.editingField === 7) {
