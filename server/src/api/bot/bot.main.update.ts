@@ -236,11 +236,20 @@ export class BotMainUpdate {
     return { isValid: true };
   }
 
+  private clearAllStates(chatId: string) {
+    this.botRezumeService.deleteUserState(chatId);
+    this.botVacancyService.deleteEmployerState(chatId);
+    this.botAdminService.deleteAdminState(chatId)
+  }
+
   // ===== START COMMAND =====
   @Start()
   async start(@Ctx() ctx: Context) {
     const chatId = ctx.chat!.id.toString();
+
     const userId = ctx.from!.id.toString();
+    
+    this.clearAllStates(chatId)
 
     // Barcha state larni tozalash
     this.botRezumeService.deleteUserState(chatId);
