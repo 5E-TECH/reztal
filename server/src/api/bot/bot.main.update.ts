@@ -313,7 +313,7 @@ export class BotMainUpdate {
         } else {
           await ctx.reply(this.t(lang, 'welcome'), {
             reply_markup: {
-              keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy')]],
+              keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy'), this.t(lang, 'announcement')]],
               resize_keyboard: true,
               one_time_keyboard: true,
             },
@@ -328,7 +328,7 @@ export class BotMainUpdate {
       if (ctx.chat?.type === 'private') {
         await ctx.reply(this.t(lang, 'welcome'), {
           reply_markup: {
-            keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy')]],
+            keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy'), this.t(lang, 'announcement')]],
             resize_keyboard: true,
             one_time_keyboard: true,
           },

@@ -90,7 +90,7 @@ export class I18nService {
     switch (keyboardType) {
       case 'main':
         return {
-          keyboard: [[translation.rezume, translation.vacancy]],
+          keyboard: [[translation.rezume, translation.vacancy, translation.announcement]],
           resize_keyboard: true,
           one_time_keyboard: true,
         };
