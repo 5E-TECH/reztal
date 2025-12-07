@@ -9,6 +9,10 @@ import { Post_Status, Post_Type } from 'src/common/enums';
 import { SubCategoryTranslationEntity } from 'src/core/entity/sub_category_translation';
 import type { SubCategoryTranslationRepository } from 'src/core/repository/sub_category_translation.repository';
 import { UpdateJobPostsTelegramDto } from '../job-posts-telegram/dto/update-job-posts-telegram.dto';
+import { MyPostsDto } from './dto/my-posts.dto';
+import { UserEntity } from 'src/core/entity/user.entity';
+import type { UserRepository } from 'src/core/repository/user.repository';
+import { DataSource, In } from 'typeorm';
 
 @Injectable()
 export class JobPostsService {
@@ -18,6 +22,11 @@ export class JobPostsService {
 
     @InjectRepository(SubCategoryTranslationEntity)
     private readonly subCatTraRepo: SubCategoryTranslationRepository,
+
+    @InjectRepository(UserEntity)
+    private readonly userRepo: UserRepository,
+
+    private readonly dataSource: DataSource,
   ) {}
   async createResume(createResumeDto: CreateResumeDto) {
     try {
@@ -70,10 +79,29 @@ export class JobPostsService {
     }
   }
 
-  async confirmResumeByAdmin() {
+  async getMyPosts(dto: MyPostsDto) {
     try {
-    } catch (error) {}
+      const { telegram_id } = dto;
+      const user = await this.userRepo.findOne({
+        where: { telegram_id },
+      });
+      if (!user) {
+        throw new NotFoundException('User with this telegram id not found');
+      }
+      const posts = await this.jobPostRepo.find({
+        where: {
+          user_id: user.id,
+          post_status: In([Post_Status.PENDING, Post_Status.APPROVED]),
+        },
+      });
+
+      return successRes(posts, 200, 'All posts by user telegram id');
+    } catch (error) {
+      return catchError(error);
+    }
   }
+
+  // async findFilteredWithPagination
 
   findAll() {
     return `This action returns all jobPosts`;
