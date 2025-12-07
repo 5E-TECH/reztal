@@ -295,12 +295,10 @@ export class BotMainUpdate {
     const dto = { telegram_id: String(ctx.chat?.id) };
     try {
       const user = await this.userService.getAdmin(dto);
+      console.log(user);
+
       if (ctx.chat?.type === 'private') {
-        if (
-          user.statusCode &&
-          `${user.statusCode}`.startsWith('2') &&
-          user.data.role === Roles.ADMIN
-        ) {
+        if (user.statusCode && `${user.statusCode}`.startsWith('2')) {
           await ctx.reply(this.t(lang, 'admin_panel'), {
             reply_markup: {
               keyboard: [
@@ -321,25 +319,26 @@ export class BotMainUpdate {
             },
           });
         }
-      } else if (
-        ctx.chat?.type === 'group' ||
-        ctx.chat?.type === 'supergroup'
-      ) {
+      } else {
         ctx.reply(
           "Salom men Reztal botman. Ushbu guruhga postlarni tasdiqlash uchun jo'natib turaman",
         );
       }
     } catch (error) {
-      console.error('showMainMenu xatosi: ', error);
-      await ctx.reply(this.t(lang, 'welcome'), {
-        reply_markup: {
-          keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy')]],
-          resize_keyboard: true,
-          one_time_keyboard: true,
-        },
-      });
+      if (ctx.chat?.type === 'private') {
+        await ctx.reply(this.t(lang, 'welcome'), {
+          reply_markup: {
+            keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy')]],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          },
+        });
+      } else {
+        ctx.reply(
+          "Salom men Reztal botman. Ushbu guruhga postlarni tasdiqlash uchun jo'natib turaman",
+        );
+      }
     }
-    const user = await this.userService.getAdmin(dto);
   }
 
   // ===== MESSAGE HANDLER =====
@@ -1656,10 +1655,15 @@ export class BotMainUpdate {
       console.log('Message id: ', messageId);
 
       if (data.startsWith('approve_')) {
-        const result = await this.botAdminService.approvePost(
+        const post = await this.botAdminService.approvePost(
           messageId,
           ctx.telegram,
         );
+
+        const jobPostChannel =
+          await this.jobPostsTelegramService.createPostForChannel(Object(post));
+
+        console.log('Yakuniy natija: ', jobPostChannel.message);
 
         try {
           // Botdagi post xabarini o'chirish
