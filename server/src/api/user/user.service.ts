@@ -13,6 +13,7 @@ import { catchError, successRes } from 'src/infrastructure/response';
 import { BcryptEncryption } from 'src/infrastructure/bcrypt';
 import config from 'src/config';
 import { GetUserDto } from './dto/get-admin.dto';
+import { In } from 'typeorm';
 
 @Injectable()
 export class UserService {
@@ -154,7 +155,7 @@ export class UserService {
     try {
       const { telegram_id } = getUserDto;
       const user = await this.userRepo.findOne({
-        where: { telegram_id, role: Roles.ADMIN },
+        where: { telegram_id, role: In([Roles.ADMIN, Roles.SUPERADMIN]) },
       });
       if (!user) {
         throw new NotFoundException('Admin with this id not found');
