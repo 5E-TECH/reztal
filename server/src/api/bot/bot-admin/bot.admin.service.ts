@@ -116,7 +116,7 @@ export class BotAdminService {
       `🎉 **Tabriklaymiz!**\n\n` +
         `✅ Postingiz tasdiqlandi va kanalga joylandi!\n` +
         `📊 Endi boshqalar sizning ${groupPost.data.type === Post_Type.RESUME ? 'rezyume' : 'vakansiya'}ngizni ko'rishadi.\n\n` +
-        `🔗 Kanal: ${config.TELEGRAM_CHANNEL_ID}`,
+        `🔗 Kanal: ${config.BOT_USERNAME}`,
       { parse_mode: 'Markdown' },
     );
 
@@ -249,10 +249,6 @@ ${typeText}
 💼 <b>Ko'nikmalar:</b> ${data[11] || '...'}
 📞 <b>Telefon:</b> ${data[12] || '...'}
 👤 <b>Username:</b> ${data[13] || '...'}
-
-👤 <b>User:</b> @${post.userInfo?.username || "Noma'lum"}
-🆔 <b>ID:</b> ${post.id}
-🕐 <b>Sana:</b> ${post.createdAt.toLocaleString()}
       `.trim();
     } else {
       typeText = '🏢 VAKANSIYA';
@@ -268,10 +264,6 @@ ${typeText}
 📋 <b>Talablar:</b> ${data[6] || '...'}
 👤 <b>Username:</b> ${data[7] || '...'}
 📞 <b>Telefon:</b> ${data[8] || '...'}
-
-👤 <b>User:</b> @${post.userInfo?.username || "Noma'lum"}
-🆔 <b>ID:</b> ${post.id}
-🕐 <b>Sana:</b> ${post.createdAt.toLocaleString()}
       `.trim();
     }
 

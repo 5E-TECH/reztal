@@ -48,6 +48,29 @@ export class BotMainUpdate {
     };
   }
 
+  // ===== YANGI KEYBOARD LAR =====
+  private getRezumeSubmenuKeyboard(lang: Language) {
+    return {
+      keyboard: [
+        [this.t(lang, 'search_job'), this.t(lang, 'fill_rezume')],
+        [this.t(lang, 'back_to_main')],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    };
+  }
+
+  private getVacancySubmenuKeyboard(lang: Language) {
+    return {
+      keyboard: [
+        [this.t(lang, 'search_employee'), this.t(lang, 'fill_vacancy')],
+        [this.t(lang, 'back_to_main')],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    };
+  }
+
   private getRezumeEditKeyboard(lang: Language) {
     const fields = this.t(lang, 'edit_fields.rezume').split(', ');
     return {
@@ -239,7 +262,7 @@ export class BotMainUpdate {
   private clearAllStates(chatId: string) {
     this.botRezumeService.deleteUserState(chatId);
     this.botVacancyService.deleteEmployerState(chatId);
-    this.botAdminService.deleteAdminState(chatId)
+    this.botAdminService.deleteAdminState(chatId);
   }
 
   // ===== START COMMAND =====
@@ -248,8 +271,8 @@ export class BotMainUpdate {
     const chatId = ctx.chat!.id.toString();
 
     const userId = ctx.from!.id.toString();
-    
-    this.clearAllStates(chatId)
+
+    this.clearAllStates(chatId);
 
     // Barcha state larni tozalash
     this.botRezumeService.deleteUserState(chatId);
@@ -322,7 +345,13 @@ export class BotMainUpdate {
         } else {
           await ctx.reply(this.t(lang, 'welcome'), {
             reply_markup: {
-              keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy'), this.t(lang, 'announcement')]],
+              keyboard: [
+                [
+                  this.t(lang, 'rezume'),
+                  this.t(lang, 'vacancy'),
+                  this.t(lang, 'announcement'),
+                ],
+              ],
               resize_keyboard: true,
               one_time_keyboard: true,
             },
@@ -337,7 +366,13 @@ export class BotMainUpdate {
       if (ctx.chat?.type === 'private') {
         await ctx.reply(this.t(lang, 'welcome'), {
           reply_markup: {
-            keyboard: [[this.t(lang, 'rezume'), this.t(lang, 'vacancy'), this.t(lang, 'announcement')]],
+            keyboard: [
+              [
+                this.t(lang, 'rezume'),
+                this.t(lang, 'vacancy'),
+                this.t(lang, 'announcement'),
+              ],
+            ],
             resize_keyboard: true,
             one_time_keyboard: true,
           },
@@ -415,7 +450,25 @@ export class BotMainUpdate {
         return;
       }
 
+      // Asosiy menyudagi tanlovlar
       if (msg.text === this.t(userLang, 'rezume')) {
+        // Rezume submenuni ko'rsatish
+        await ctx.reply(this.t(userLang, 'choose_rezume_option'), {
+          reply_markup: this.getRezumeSubmenuKeyboard(userLang),
+        });
+        return;
+      }
+
+      if (msg.text === this.t(userLang, 'vacancy')) {
+        // Vacancy submenuni ko'rsatish
+        await ctx.reply(this.t(userLang, 'choose_vacancy_option'), {
+          reply_markup: this.getVacancySubmenuKeyboard(userLang),
+        });
+        return;
+      }
+
+      // Rezume submenu tanlovlari
+      if (msg.text === this.t(userLang, 'fill_rezume')) {
         const firstQuestion = await this.botRezumeService.startCollection(
           chatId,
           userLang,
@@ -434,7 +487,15 @@ export class BotMainUpdate {
         return;
       }
 
-      if (msg.text === this.t(userLang, 'vacancy')) {
+      if (msg.text === this.t(userLang, 'search_job')) {
+        await ctx.reply(this.t(userLang, 'search_job_message'), {
+          reply_markup: { remove_keyboard: true },
+        });
+        return;
+      }
+
+      // Vacancy submenu tanlovlari
+      if (msg.text === this.t(userLang, 'fill_vacancy')) {
         const firstQuestion =
           await this.botVacancyService.startEmployerCollection(
             chatId,
@@ -443,6 +504,19 @@ export class BotMainUpdate {
         await ctx.reply(firstQuestion, {
           reply_markup: { remove_keyboard: true },
         });
+        return;
+      }
+
+      if (msg.text === this.t(userLang, 'search_employee')) {
+        await ctx.reply(this.t(userLang, 'search_employee_message'), {
+          reply_markup: { remove_keyboard: true },
+        });
+        return;
+      }
+
+      // Asosiy menyuga qaytish
+      if (msg.text === this.t(userLang, 'back_to_main')) {
+        await this.showMainMenu(ctx, userLang);
         return;
       }
     }
