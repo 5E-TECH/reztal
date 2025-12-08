@@ -20,6 +20,7 @@ export default {
 
   BOT_TOKEN: String(process.env.BOT_TOKEN),
   BOT_NAME: String(process.env.BOT_NAME),
+  BOT_USERNAME: String(process.env.BOT_USERNAME),
   UPLOAD_URL: String(process.env.UPLOAD_URL),
 
   TELEGRAM_GROUP_ID: String(process.env.ADMIN_GROUP_ID),
