@@ -1,5 +1,5 @@
-import { Module } from '@nestjs/common';
-import { TelegrafModule } from 'nestjs-telegraf';
+import { Module, OnModuleInit } from '@nestjs/common';
+import { InjectBot, TelegrafModule } from 'nestjs-telegraf';
 import { BotAdminService } from './bot/bot-admin/bot.admin.service';
 import { BotMainUpdate } from './bot/bot.main.update';
 import { UserModule } from './user/user.module';
@@ -16,6 +16,10 @@ import { ChannelGroupModule } from './channel-group/channel-group.module';
 import { JobPostsTelegramModule } from './job-posts-telegram/job-posts-telegram.module';
 import { BotRezumeService } from './bot/bot-rezume/rezume/bot.rezume.service';
 import { BotVacancyService } from './bot/bot-vacancy/vacancy/bot.service';
+import { BotSearchWorkService } from './bot/bot-rezume/search-work/bot.search-work.service';
+import { session, Telegraf } from 'telegraf';
+import { MySession } from './bot/common/interfaces';
+// import { LocalSession } from 'telegraf-session-local';
 
 @Module({
   imports: [
@@ -25,8 +29,25 @@ import { BotVacancyService } from './bot/bot-vacancy/vacancy/bot.service';
       autoLoadEntities: true,
       synchronize: true,
     }),
-    TelegrafModule.forRoot({
-      token: config.BOT_TOKEN!,
+    TelegrafModule.forRootAsync({
+      useFactory: () => ({
+        token: config.BOT_TOKEN,
+        middlewares: [
+          session({
+            defaultSession: (): MySession => ({
+              step: 0,
+              filter: {
+                sub_category: null,
+                work_format: null,
+                level: null,
+                location: null,
+                page: 1,
+              },
+              category: null,
+            }),
+          }),
+        ],
+      }),
     }),
     UserModule,
     LoggerModule,
@@ -37,6 +58,20 @@ import { BotVacancyService } from './bot/bot-vacancy/vacancy/bot.service';
     ChannelGroupModule,
     JobPostsTelegramModule,
   ],
-  providers: [BotAdminService, BotRezumeService, BotMainUpdate, BotVacancyService, I18nService, UserLanguageService], // providerlar shu modulda bo'lishi kerak
+  providers: [
+    BotAdminService,
+    BotRezumeService,
+    BotMainUpdate,
+    BotVacancyService,
+    I18nService,
+    UserLanguageService,
+    BotSearchWorkService,
+  ], // providerlar shu modulda bo'lishi kerak
 })
-export class AppModule {}
+export class AppModule implements OnModuleInit {
+  onModuleInit() {
+    // this.bot.use(session()); // 🔥 SESSION shu yerda ulanadi
+
+    console.log('Telegram session merdevare ENABLED');
+  }
+}

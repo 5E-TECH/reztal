@@ -9,9 +9,9 @@
   "choose_vacancy_option": "Iltimos, vakansiya bo'limidan pastagilardan birini tanlang:",
   "search_job": "🔍 Ish qidirish",
   "fill_rezume": "📝 Rezyume to'ldirish",
-  "search_employee": "🔍 Ishchi qidirish", 
+  "search_employee": "🔍 Ishchi qidirish",
   "fill_vacancy": "📝 Vakansiya qoldirish",
-  "search_job_message": "🚀 Ish qidirish funksiyasi hozir ishlab chiqilmoqda. Tez orada foydalanish mumkin bo'ladi!",
+  "search_job_message": "🚀 Qaysi turdagi ish qidirayapsiz?",
   "search_employee_message": "🚀 Ishchi qidirish funksiyasi hozir ishlab chiqilmoqda. Tez orada foydalanish mumkin bo'ladi!",
   "confirmation": "✅ Tasdiqlash",
   "edit": "✏️ Tahrirlash",
@@ -64,6 +64,12 @@
   "gender": {
     "male": "Erkak",
     "female": "Ayol"
+  },
+
+  "level": {
+    "junior": "Junior",
+    "middle": "Middle",
+    "senior": "Senior"
   },
 
   "category": {

@@ -8,11 +8,13 @@ import type { JobPostsRepository } from 'src/core/repository/job-posts.repositor
 import { Post_Status, Post_Type } from 'src/common/enums';
 import { SubCategoryTranslationEntity } from 'src/core/entity/sub_category_translation';
 import type { SubCategoryTranslationRepository } from 'src/core/repository/sub_category_translation.repository';
-import { UpdateJobPostsTelegramDto } from '../job-posts-telegram/dto/update-job-posts-telegram.dto';
 import { MyPostsDto } from './dto/my-posts.dto';
 import { UserEntity } from 'src/core/entity/user.entity';
 import type { UserRepository } from 'src/core/repository/user.repository';
 import { DataSource, In } from 'typeorm';
+import { JobFilterDto } from './dto/job-filter.dto';
+import { CategoryEntity } from 'src/core/entity/category.entity';
+import type { CategoryRepository } from 'src/core/repository/category.repository';
 
 @Injectable()
 export class JobPostsService {
@@ -97,6 +99,82 @@ export class JobPostsService {
 
       return successRes(posts, 200, 'All posts by user telegram id');
     } catch (error) {
+      return catchError(error);
+    }
+  }
+
+  async workFilter(filter: JobFilterDto) {
+    try {
+      const { page, sub_category, location } = filter;
+      let { work_format, level } = filter;
+      const limit = 5;
+      const skip = (page - 1) * limit;
+
+      console.log('Work filterga kirdi: ', filter);
+
+      const subCategoryId = await this.subCatTraRepo.findOne({
+        where: { name: sub_category },
+        relations: ['subCategory'],
+        select: ['id', 'name', 'subCategory'],
+      });
+
+      const queryBuilder = this.jobPostRepo.createQueryBuilder('job');
+
+      console.log('Query builder yaratdi');
+
+      // Filterlarni qo'llash
+      if (subCategoryId) {
+        queryBuilder.andWhere('job.sub_category_id = :sub_category_id', {
+          sub_category_id: subCategoryId.subCategory.id,
+        });
+      }
+
+      console.log('Sub category topildi');
+
+      if (work_format) {
+        work_format = work_format.toLowerCase();
+        queryBuilder.andWhere('job.work_format = :work_format', {
+          work_format,
+        });
+      }
+
+      console.log('Work format topildi');
+
+      if (level) {
+        level = level.toLowerCase();
+        queryBuilder.andWhere('job.level = :level', { level });
+      }
+
+      console.log('Level topildi');
+
+      if (location) {
+        queryBuilder.andWhere('job.location = :address', { location });
+      }
+
+      console.log('Location topildi');
+      // Pagination
+      queryBuilder.skip(skip).take(limit);
+
+      // Natijalarni olish
+      const [jobs, total] = await queryBuilder.getManyAndCount();
+      console.log('Natija: ', jobs);
+
+      return successRes(
+        {
+          data: jobs,
+          meta: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+          },
+        },
+        201,
+        'Filtered vacancies',
+      );
+    } catch (error) {
+      console.log(error);
+
       return catchError(error);
     }
   }

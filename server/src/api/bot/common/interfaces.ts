@@ -1,3 +1,6 @@
+import { Work_Format } from 'src/common/enums';
+import { Context } from 'telegraf';
+
 export interface Statistics {
   totalUsers: number;
   totalPosts: number;
@@ -26,4 +29,20 @@ export interface Admin {
   phone?: string; // Telefon raqam qo'shildi
   addedBy?: string;
   joinedAt: Date;
+}
+
+export interface MySession {
+  step: number;
+  filter: {
+    sub_category: string | null;
+    location?: string | null;
+    work_format?: string | null;
+    level?: string | null;
+    page: number;
+  };
+  category?: string | null;
+}
+
+export interface MyContext extends Context {
+  session: MySession;
 }

@@ -90,7 +90,9 @@ export class I18nService {
     switch (keyboardType) {
       case 'main':
         return {
-          keyboard: [[translation.rezume, translation.vacancy, translation.announcement]],
+          keyboard: [
+            [translation.rezume, translation.vacancy, translation.announcement],
+          ],
           resize_keyboard: true,
           one_time_keyboard: true,
         };
@@ -116,6 +118,19 @@ export class I18nService {
       case 'gender':
         return {
           keyboard: [[translation.gender.male, translation.gender.female]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        };
+
+      case 'level':
+        return {
+          keyboard: [
+            [
+              translation.level.junior,
+              translation.level.middle,
+              translation.level.senior,
+            ],
+          ],
           resize_keyboard: true,
           one_time_keyboard: true,
         };
