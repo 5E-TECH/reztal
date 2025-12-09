@@ -333,6 +333,58 @@ ${data[8] || ''} ${data[7] || ''}
     }
   }
 
+  formatJobFilter(result): { caption: string } {
+    const data = result.data;
+    if (data.type === Post_Type.RESUME) {
+      return {
+        caption: `
+▫️${data.subCategory.translations.name || 'Kasb'}
+
+💰 Maosh: ${data.salary || 'Kelishilgan'}
+
+Ism: ${data.user.name || '...'}
+Yosh: ${data.age || '...'}
+Tajriba: ${data.experience || '...'}
+Hudud: ${data.address || '...'}
+Tillar: ${data.language || '...'}
+Ko'nikmalar: ${data.skills || '...'}
+
+Aloqa uchun:
+${data.user.phone_number || ''}
+${data.telegram_username || ''}
+- - - - -
+
+🧑‍💼 Rezyume joylash: @Reztalpost
+
+@Reztal_jobs bilan eng mosini toping!
+        `.trim(),
+      };
+    } else {
+      const data = result;
+      return {
+        caption: `
+▫️${data[1] || 'Lavozim'} kerak
+
+💰 Maosh: ${data[5] || 'Kelishilgan'}
+
+Kompaniya: ${data[2] || '...'}
+Hudud: ${data[3] || '...'}
+Ish turi: ${data[4] || '...'}
+Talablar: ${data[6] || '...'}
+
+Aloqa uchun:
+${data[8] || ''} ${data[7] || ''}
+
+- - - - -
+
+🏢 Vakansiya joylash: @Reztalpost
+
+@Reztal_jobs bilan eng mosini toping!
+        `.trim(),
+      };
+    }
+  }
+
   // Postni o'chirish
   async deletePost(
     postId: number,

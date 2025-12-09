@@ -1,5 +1,5 @@
-import { Update, Start, On, Ctx, Action } from 'nestjs-telegraf';
-import { Context } from 'telegraf';
+import { Update, Start, On, Ctx, Action, Command } from 'nestjs-telegraf';
+import { Context, NarrowedContext } from 'telegraf';
 import { BotRezumeService as BotRezumeService } from '../bot/bot-rezume/rezume/bot.rezume.service';
 import { BotVacancyService as BotVacancyService } from '../bot/bot-vacancy/vacancy/bot.service';
 import { BotAdminService } from './bot-admin/bot.admin.service';
@@ -8,10 +8,12 @@ import { BotAdminService } from './bot-admin/bot.admin.service';
 import { I18nService } from '../../i18n/i18n.service';
 // import type { Language } from '../../i18n/i18n.service';
 import { UserLanguageService } from '../../api/user/user-language.service';
-import { Language, Roles } from 'src/common/enums';
+import { Language, Roles, Work_Format } from 'src/common/enums';
 import { UserService } from '../user/user.service';
 import { JobPostsService } from '../job-posts/job-posts.service';
 import { JobPostsTelegramService } from '../job-posts-telegram/job-posts-telegram.service';
+import { FILTER_FIELDS } from './common/work-filter-question';
+import { BotSearchWorkService } from './bot-rezume/search-work/bot.search-work.service';
 
 interface ServiceResponse {
   confirmation?: boolean;
@@ -32,6 +34,7 @@ export class BotMainUpdate {
     private userService: UserService,
     private jobPostsService: JobPostsService,
     private jobPostsTelegramService: JobPostsTelegramService,
+    private botSerchWorkService: BotSearchWorkService,
   ) {}
 
   // ===== TARJIMA YORDAMCHI FUNKSIYASI =====
@@ -387,7 +390,7 @@ export class BotMainUpdate {
 
   // ===== MESSAGE HANDLER =====
   @On('message')
-  async onMessage(@Ctx() ctx: Context) {
+  async onMessage(@Ctx() ctx, lang: Language) {
     const msg = ctx.message;
     if (!msg) return;
 
@@ -487,11 +490,213 @@ export class BotMainUpdate {
         return;
       }
 
+      // 1. AVVAL "search_job" tugmasi bosilganda
       if (msg.text === this.t(userLang, 'search_job')) {
-        await ctx.reply(this.t(userLang, 'search_job_message'), {
-          reply_markup: { remove_keyboard: true },
+        console.log('Search jobga kirdi', msg.text);
+
+        // Sessionni ishga tushirish
+        // if (!ctx.session || ctx.session.step === undefined) {
+        //   ctx.session = {
+        //     step: 0,
+        //     category: null,
+        //     subcategory: null,
+        //     filters: {},
+        //   };
+        // }
+
+        // Faqat step 0 ga qaytarish
+        ctx.session.step = 0;
+
+        // Kategoriyalarni chiqarish
+        await ctx.reply('Iltimos, kategoriyani tanlang:', {
+          reply_markup: this.i18nService.getCategoryKeyboard(lang),
         });
+
+        // Stepni 1 ga o'zgartirish
+        ctx.session.step = 1;
         return;
+      }
+
+      // 2. AGAR SESSIONDA STEP BOR BO'LSA (ya'ni search jarayonida bo'lsa)
+      if (
+        ctx.session &&
+        ctx.session.step !== undefined &&
+        ctx.session.step > 0
+      ) {
+        console.log('Search jarayonida, step:', ctx.session.step);
+
+        const step = ctx.session.step;
+
+        const text = msg.text.trim();
+        const translation = this.i18nService.getTranslation(lang);
+
+        // ================ STEP 1: KATEGORIYANI QABUL QILISH ================
+        if (step === 1) {
+          console.log('STEP 1 - Kategoriya qabul qilinmoqda');
+
+          // Foydalanuvchi yuborgan kategoriyani tekshirish
+
+          const categories = translation.category?.categories || [];
+
+          const category = categories.find((cat: any) => cat.name === text);
+
+          if (category) {
+            console.log('Kategoriya tanlandi:', category.name);
+
+            // Kategoriyani sessionga saqlash
+            ctx.session.category = category.name;
+
+            // Subkategoriya keyboardini yuborish
+            await ctx.reply(
+              `${category.name} kategoriyasidan pastagi mutaxassislikni tanlang:`,
+              {
+                reply_markup: this.i18nService.getSubCategoryKeyboard(
+                  lang,
+                  category.name,
+                ),
+              },
+            );
+
+            // Stepni 2 ga o'zgartirish
+            ctx.session.step = 2;
+            return;
+          } else {
+            // Noto'g'ri kategoriya tanlangan
+            await ctx.reply(
+              "Noto'g'ri kategoriya. Iltimos, qaytadan tanlang:",
+              {
+                reply_markup: this.i18nService.getCategoryKeyboard(lang),
+              },
+            );
+            // STEP 1 da qolamiz
+            return;
+          }
+        }
+
+        // ================ STEP 2: SUBCATEGORY QABUL QILISH ================
+        if (step === 2) {
+          console.log('STEP 2 - Subkategoriya qabul qilinmoqda');
+
+          if (!ctx.session.category) {
+            // Agar kategoriya yo'q bo'lsa, qayta boshlash
+            ctx.session.step = 0;
+            await ctx.reply('Kategoriya topilmadi. Qayta boshlaymiz...');
+            return;
+          }
+
+          const translation = this.i18nService.getTranslation(lang);
+          const categories = translation.category?.categories || [];
+
+          console.log('Categoriyalar', categories);
+
+          const category = categories.find(
+            (cat: any) => cat.name === ctx.session.category,
+          );
+
+          console.log('BU TANLANGAN CATEGORY', category);
+
+          if (category && category.sub_categories) {
+            const subcategories = category.sub_categories;
+            console.log('SUBCATEGORIYALAR', subcategories);
+
+            const selectedSubcategory = subcategories.find(
+              (sub: any) => sub === msg.text.trim(),
+            );
+
+            console.log('TANLANGAN SUB-CAT', selectedSubcategory);
+
+            if (selectedSubcategory) {
+              console.log('Subkategoriya tanlandi:', selectedSubcategory);
+
+              // Subkategoriyani sessionga saqlash
+              ctx.session.filter.sub_category = selectedSubcategory;
+
+              const levelRequiredCategories = [
+                'Dasturlash',
+                'Dizayn',
+                'Marketing',
+              ];
+              if (levelRequiredCategories.includes(ctx.session.category)) {
+                ctx.session.step = 3;
+              } else {
+                ctx.session.step = 4;
+              }
+              // Keyingi filterga o'tish
+
+              await ctx.reply(
+                `✅ Tanlandi: ${ctx.session.category} / ${ctx.session.filter.sub_category}`,
+              );
+
+              // Keyingi filterni so'rash
+              await this.botSerchWorkService.askNextField(ctx);
+              return;
+            }
+          }
+
+          // Subkategoriya topilmasa, qayta so'rash
+          await ctx.reply(
+            "Noto'g'ri mutaxassislik. Iltimos, qaytadan tanlang:",
+            {
+              reply_markup: this.i18nService.getSubCategoryKeyboard(
+                lang,
+                ctx.session.category,
+              ),
+            },
+          );
+          return;
+        }
+
+        if (step === 3) {
+          const levels = translation.level;
+          console.log('LEVELLAR', levels);
+          const level = text.toLowerCase();
+          const currentLevel = levels[level];
+          if (currentLevel) {
+            ctx.session.filter.level = currentLevel;
+            ctx.session.step = 4;
+            await ctx.reply(`✅ Tanlandi: ${currentLevel}`);
+            await this.botSerchWorkService.askNextField(ctx);
+          } else {
+            await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
+            await this.botSerchWorkService.askNextField(ctx);
+          }
+
+          // Stepni 3 ga o'zgartirish
+
+          return;
+        }
+        if (step === 4) {
+          const workTypes = translation.work_types;
+          console.log('Formats: ', workTypes);
+          const work_type = workTypes.includes(text);
+          if (work_type) {
+            ctx.session.filter.work_format = text;
+            if (text === 'Online') {
+              ctx.session.step = 6;
+            } else {
+              ctx.session.step = 5;
+            }
+            await ctx.reply(`✅ Tanlandi: ${text}`);
+            await this.botSerchWorkService.askNextField(ctx);
+          } else {
+            await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
+            await this.botSerchWorkService.askNextField(ctx);
+          }
+        }
+        if (step === 5) {
+          const regions = translation.regions;
+          console.log('Regions: ', regions);
+          const exists = regions.flat().includes(text);
+          if (exists) {
+            ctx.session.filter.location = text;
+            ctx.session.step = 6;
+            await ctx.reply(`✅ Tanlandi: ${text}`);
+            await this.botSerchWorkService.askNextField(ctx);
+          } else {
+            await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
+            await this.botSerchWorkService.askNextField(ctx);
+          }
+        }
       }
 
       // Vacancy submenu tanlovlari
@@ -1808,5 +2013,24 @@ export class BotMainUpdate {
       console.error('Error in handlePostAction:', error);
       await ctx.answerCbQuery(this.t(lang, 'errors.general'));
     }
+  }
+
+  @Action('skip')
+  async skipField(@Ctx() ctx) {
+    ctx.session.step++;
+    await ctx.answerCbQuery("O'tkazildi");
+    this.botSerchWorkService.askNextField(ctx);
+  }
+
+  @Command('filter')
+  async startFilter(@Ctx() ctx) {
+    ctx.session.filter = {};
+    ctx.session.step = 0;
+
+    await ctx.reply(
+      "Filterni boshlaymiz.\n'Skip' bosib o‘tib ketishingiz mumkin.",
+    );
+
+    this.botSerchWorkService.askNextField(ctx);
   }
 }

@@ -66,6 +66,12 @@
     "female": "Женщина"
   },
 
+  "level": {
+    "junior": "Junior",
+    "middle": "Middle",
+    "senior": "Senior"
+  },
+
   "category": {
     "back": "⬅️ Назад",
     "categories": [
