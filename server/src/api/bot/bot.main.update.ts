@@ -490,6 +490,27 @@ export class BotMainUpdate {
         return;
       }
 
+      if (msg.text === this.t(userLang, 'fill_vacancy')) {
+        const firstQuestion =
+          await this.botVacancyService.startEmployerCollection(
+            chatId,
+            userLang,
+          );
+        await ctx.reply(firstQuestion, {
+          reply_markup: { remove_keyboard: true },
+        });
+        setTimeout(async () => {
+          await ctx.reply(
+            'Iltimos, quyidagi kategoriyalardan birini tanlang:',
+            {
+              reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+            },
+          );
+        }, 0);
+        return;
+      }
+
+
       // 1. AVVAL "search_job" tugmasi bosilganda
       if (msg.text === this.t(userLang, 'search_job')) {
         console.log('Search jobga kirdi', msg.text);

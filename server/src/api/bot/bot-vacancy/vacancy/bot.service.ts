@@ -1,9 +1,13 @@
+import { name } from './../../../../../node_modules/ci-info/index.d';
 import { Injectable } from '@nestjs/common';
 import { createCanvas, loadImage } from 'canvas';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Language } from 'src/common/enums';
 import { I18nService } from 'src/i18n/i18n.service';
+import { text } from 'stream/consumers';
+import { message } from 'telegraf/filters';
+import { keyboard } from 'telegraf/markup';
 
 @Injectable()
 export class BotVacancyService {
@@ -113,9 +117,90 @@ export class BotVacancyService {
     const step = state.step;
     console.log('State step in service:', step);
 
-    const lang: Language = state.lang || 'uz';
+    const lang: Language = Language.UZ;
     const questions = this.getQuestions(lang);
     console.log('Questions:', questions);
+
+    if(step === 1) {
+      if('text' in msg && msg.text) {
+        const text = msg.text.trim();
+        const translation = this.i18nService.getTranslation(lang);
+        const categories = translation.category?.categories || [];
+
+        if(text === translation.category?.back) {
+          if(state.selectedCategory) {
+            delete state.selectedCategory;
+            return {
+              message: 'Kasbingizni tanlang: ',
+              keyboard: this.i18nService.getCategoryKeyboard(lang),
+            }
+          } else {
+            this.employerStates.delete(chatId);
+            return {
+              message: 'Asosiy menyuga qaytdingiz',
+              keyboard: this.getKeyboard(lang, 'main')
+            }
+          }
+        }
+
+        // === 2. Kategoriya tanlash (avval tekshirish) ===
+        const category = categories.find((cat: any) => cat.name === text);
+        if(category) {
+          state.selectedCategory = category.name;
+
+          this.employerStates.set(chatId, state);
+          return {
+            message: `${category.name} kategoriyasidan pastagi mutaxassislikni tanlang:`,
+            keyboard: this.i18nService.getSubCategoryKeyboard(
+              lang,
+              category.name,
+            ),
+          };
+        }
+
+        // === 3. SUBKATEGORIYA TANLASH (KEYIN TEKSHIRISH) ===
+        // Faqat agar kategoriya tanlangan bo'lsa
+        if(state.selectedCategory) {
+          const currentCategory = categories.find((cat: any) => cat.name === state.selectedCategory);
+          if (
+            currentCategory &&
+            currentCategory.sub_categories &&
+            currentCategory.sub_categories.includes(text)
+          ) {
+            state.answers[1] = text; // Kasbni saqlash
+            state.answers.category = state.selectedCategory; // Kategoriyani saqlash
+            state.step = 2; // 2-qadamga o'tish
+            delete state.selectedCategory; // Vaqtinchalik holatni tozalash
+
+            this.employerStates.set(chatId, state); // State ni saqlash
+
+            const questions = this.getQuestions(lang);
+
+            return {
+              message: questions[1], // "PDF yuboring"
+              keyboard: { remove_keyboard: true },
+            };
+          }
+        }
+
+        if (!state.selectedCategory) {
+          return {
+            message: 'Iltimos, kasbingizni quyidagi kategoriyalardan tanlang:',
+            keyboard: this.i18nService.getCategoryKeyboard(lang),
+          };
+        } else {
+          // Agar kategoriya tanlangan, lekin subkategoriya noto'g'ri bo'lsa
+          return {
+            message: `Iltimos, "${state.selectedCategory}" kategoriyasidan pastagi mutaxassislikni tanlang:`,
+            keyboard: this.i18nService.getSubCategoryKeyboard(
+              lang,
+              state.selectedCategory,
+            ),
+          };
+        }
+
+      }
+    }
 
     // STEP 5-7 ni ham qo'shing (maosh, talablar, username)
     if (step >= 5 && step <= 7) {
