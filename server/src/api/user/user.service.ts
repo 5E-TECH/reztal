@@ -122,11 +122,15 @@ export class UserService {
   async createHr(createHrDto: CreateUserDto) {
     try {
       const { name, password, phone_number, telegram_id } = createHrDto;
-      const isExistCandidate = await this.userRepo.findOne({
+      const isExistHr = await this.userRepo.findOne({
         where: { phone_number },
       });
-      if (isExistCandidate) {
-        throw new ConflictException('User with this number already exist');
+      if (isExistHr) {
+        return successRes(
+          { id: isExistHr.id },
+          200,
+          'This user already registered',
+        );
       }
       let hashedPassword: string | undefined;
       if (password) {

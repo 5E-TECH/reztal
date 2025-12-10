@@ -53,12 +53,13 @@
   "vacancy_questions": [
     "1. Kasb nomi?",
     "2. Kompaniya nomi?",
-    "3. Hudud?",
-    "4. Ish turi?",
-    "5. Maosh?",
+    "3. Ish turi?",
+    "4. Hudud?",
+    "5. Daraja?",
     "6. Talablar?",
-    "7. Telegram username?",
-    "8. Telefon raqam?"
+    "7. Maosh?",
+    "8. Telefon raqam?",
+    "9. Telegram username?"
   ],
 
   "gender": {
@@ -227,7 +228,7 @@
 
   "confirmation_messages": {
     "rezume_preview": "📋 **Ma'lumotlaringizni tekshiring:**\n\n🧑‍💼 Kasb: {{job}}\n📊 Tajriba: {{experience}}\n💰 Maosh: {{salary}}\n👤 Ism: {{name}}\n🎂 Yosh: {{age}}\n⚧ Jins: {{gender}}\n📍 Hudud: {{region}}\n🌐 Tillar: {{languages}}\n📁 Portfolio: {{portfolio}}\n💼 Ko'nikmalar: {{skills}}\n📞 Telefon: {{phone}}\n👤 Username: {{username}}\n\n*Ma'lumotlaringiz to'g'rimi?*",
-    "vacancy_preview": "📋 **Vakansiya ma'lumotlari:**\n\n💼 Kasb: {{job}}\n🏢 Kompaniya: {{company}}\n📍 Hudud: {{region}}\n🖥️ Ish turi: {{workType}}\n💰 Maosh: {{salary}}\n📋 Talablar: {{requirements}}\n👤 Username: {{username}}\n📞 Telefon: {{phone}}\n\n*Ma'lumotlar to'g'rimi?*",
+    "vacancy_preview": "📋 **Vakansiya ma'lumotlari:**\n\n💼 Kasb: {{job}}\n🏢 Kompaniya: {{company}}\n🖥 Ish turi: {{workType}}\n📍 Hudud: {{region}}\n📍 Daraja: {{level}}\n📋 Talablar: {{requirements}}\n💰 Maosh: {{salary}}\n📞 Telefon: {{phone}}\n👤 Username: {{username}}\n\n*Ma'lumotlar to'g'rimi?*",
     "rezume_submitted": "📝 Postingiz yaratildi! Admin tasdiqlagach kanalga joylanadi.\n\n⏳ Holat: **Tasdiqlash kutilmoqda**\n🔢 Post ID: {{postId}}",
     "vacancy_submitted": "📝 Vakansiya postingiz yaratildi! Admin tasdiqlagach kanalga joylanadi.\n\n⏳ Holat: **Tasdiqlash kutilmoqda**\n🔢 Post ID: {{postId}}"
   },

@@ -52,6 +52,8 @@ export class BotAdminService {
     try {
       let sentMessage;
 
+      console.log(formattedPost);
+
       if (post.imagePath) {
         sentMessage = await bot.sendPhoto(
           config.TELEGRAM_GROUP_ID,
@@ -231,7 +233,7 @@ export class BotAdminService {
     let caption = '';
     let typeText = '';
 
-    if (post.type === 'rezume') {
+    if (post.type === Post_Type.RESUME) {
       typeText = '🧑‍💼 REZYUME';
       const data = post.data;
       caption = `
@@ -250,20 +252,25 @@ ${typeText}
 📞 <b>Telefon:</b> ${data[12] || '...'}
 👤 <b>Username:</b> ${data[13] || '...'}
       `.trim();
-    } else {
+    } else if (post.type === Post_Type.VACANCY) {
+      console.log('Vacansiyaga kirdi');
+
       typeText = '🏢 VAKANSIYA';
       const data = post.data;
+      console.log('Vacancy data: ', data);
+
       caption = `
 ${typeText}
 
 💼 <b>Lavozim:</b> ${data[1] || '...'}
 🏛️ <b>Kompaniya:</b> ${data[2] || '...'}
-📍 <b>Hudud:</b> ${data[3] || '...'}
-🖥️ <b>Ish turi:</b> ${data[4] || '...'}
-💰 <b>Maosh:</b> ${data[5] || '...'}
+🖥️ <b>Ish turi:</b> ${data[3] || '...'}
+📍 <b>Hudud:</b> ${data[4] || '...'}
+   <b>Daraja:</b>  ${data[5] || ''}
 📋 <b>Talablar:</b> ${data[6] || '...'}
-👤 <b>Username:</b> ${data[7] || '...'}
-📞 <b>Telefon:</b> ${data[8] || '...'}
+💰 <b>Maosh:</b> ${data[7] || '...'}
+👤 <b>Username:</b> ${data[8] || '...'}
+📞 <b>Telefon:</b> ${data[9] || '...'}
       `.trim();
     }
 
@@ -276,6 +283,8 @@ ${typeText}
         ],
       ],
     };
+
+    console.log('Vacancy terurndan oldin');
 
     return { caption, keyboard };
   }

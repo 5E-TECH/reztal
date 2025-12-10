@@ -31,7 +31,7 @@ export class CreateVacancyDto {
   @ApiProperty({ name: 'Address', example: 'Toshkent sh / Navoiy vil' })
   @IsOptional()
   @IsString()
-  address?: string;
+  address?: string | null;
 
   @ApiProperty({ name: 'Telegram username', example: '@username' })
   @IsNotEmpty()

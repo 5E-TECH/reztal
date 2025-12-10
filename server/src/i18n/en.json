@@ -51,14 +51,15 @@
   ],
 
   "vacancy_questions": [
-    "1. Profession name?",
+    "1. Job title?",
     "2. Company name?",
-    "3. Location?",
-    "4. Work type?",
-    "5. Salary?",
+    "3. Job type?",
+    "4. Location?",
+    "5. Level?",
     "6. Requirements?",
-    "7. Telegram username?",
-    "8. Phone number?"
+    "7. Salary?",
+    "8. Telegram username?",
+    "9. Phone number?"
   ],
 
   "gender": {
