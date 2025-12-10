@@ -1,4 +1,9 @@
-import { Work_Format } from 'src/common/enums';
+import {
+  Language,
+  Post_Status,
+  Post_Type,
+  Work_Format,
+} from 'src/common/enums';
 import { Context } from 'telegraf';
 
 export interface Statistics {
@@ -13,13 +18,13 @@ export interface Statistics {
 
 export interface Post {
   id: number;
-  type: 'rezume' | 'vacancy';
+  type: Post_Type;
   userId: string;
   userInfo: any;
   data: any;
   imagePath?: string;
   caption?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: Post_Status;
   createdAt: Date;
 }
 
@@ -39,6 +44,7 @@ export interface MySession {
     work_format?: string | null;
     level?: string | null;
     page: number;
+    language: Language;
   };
   category?: string | null;
 }

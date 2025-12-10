@@ -3,7 +3,7 @@ import { Context } from 'telegraf';
 import { FILTER_FIELDS } from '../../common/work-filter-question';
 import { JobPostsService } from 'src/api/job-posts/job-posts.service';
 import { I18nService } from 'src/i18n/i18n.service';
-import { Post_Type } from 'src/common/enums';
+import { Language, Post_Type } from 'src/common/enums';
 
 @Injectable()
 export class BotSearchWorkService {
@@ -67,35 +67,35 @@ export class BotSearchWorkService {
     }
   }
 
-  async showResults(ctx) {
+  async showResults(ctx, lang: Language) {
     const filters = ctx.session.filter;
 
     console.log('FILTER OXIRGI NATIJA: ', filters);
 
-    const results = await this.jobService.workFilter(filters);
+    const results = await this.jobService.workFilter(filters, lang);
 
     console.log('FILTER OXIRGI NATIJAdan keyin: ', results);
 
-    if (!results.data.length) {
+    if (!results.data.data.length) {
       return ctx.reply('❌ Hech narsa topilmadi');
     }
 
     this.formatFilteredData(results, ctx);
-    const text = results.data
-      .map((r) => `• ${r.title} — ${r.company}`)
+    const text = results.data.data
+      .map((r) => `• ${r.subCategory.translations.name}`)
       .join('\n');
 
     await ctx.reply(`Natija:\n\n${text}`);
   }
 
-  async askNextField(ctx) {
+  async askNextField(ctx, lang) {
     const step = ctx.session.step;
     if (step === 3) {
       const fieldNum = step - 2;
       const field = FILTER_FIELDS[fieldNum];
 
       if (!field) {
-        return this.showResults(ctx);
+        return this.showResults(ctx, lang);
       }
 
       await ctx.reply(`Quyidagi fieldni tanlang: ${field}`, {
@@ -107,7 +107,7 @@ export class BotSearchWorkService {
       const field = FILTER_FIELDS[fieldNum];
 
       if (!field) {
-        return this.showResults(ctx);
+        return this.showResults(ctx, lang);
       }
 
       await ctx.reply(`Quyidagi fieldni tanlang: ${field}`, {
@@ -119,7 +119,7 @@ export class BotSearchWorkService {
       const field = FILTER_FIELDS[fieldNum];
 
       if (!field) {
-        return this.showResults(ctx);
+        return this.showResults(ctx, lang);
       }
 
       await ctx.reply(`Quyidagi fieldni tanlang: ${field}`, {
@@ -127,7 +127,7 @@ export class BotSearchWorkService {
       });
     }
     if (step >= 6) {
-      return this.showResults(ctx);
+      return this.showResults(ctx, lang);
     }
   }
 }

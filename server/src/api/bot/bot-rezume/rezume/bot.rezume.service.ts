@@ -471,11 +471,11 @@ export class BotRezumeService {
         const username = msg.text.trim();
 
         if (!username.startsWith('@')) {
-          return { message: 'errors.username_invalid' };
+          return { message: 'Username xato' };
         }
 
         if (username.length < 2) {
-          return { message: 'errors.username_invalid' };
+          return { message: 'Username xato' };
         }
 
         state.answers[13] = username;

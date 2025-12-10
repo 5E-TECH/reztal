@@ -5,7 +5,7 @@ import { catchError, successRes } from 'src/infrastructure/response';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JobPostsEntity } from 'src/core/entity/job-posts.entity';
 import type { JobPostsRepository } from 'src/core/repository/job-posts.repository';
-import { Post_Status, Post_Type } from 'src/common/enums';
+import { Language, Post_Status, Post_Type } from 'src/common/enums';
 import { SubCategoryTranslationEntity } from 'src/core/entity/sub_category_translation';
 import type { SubCategoryTranslationRepository } from 'src/core/repository/sub_category_translation.repository';
 import { MyPostsDto } from './dto/my-posts.dto';
@@ -100,7 +100,7 @@ export class JobPostsService {
     }
   }
 
-  async workFilter(filter: JobFilterDto) {
+  async workFilter(filter: JobFilterDto, lang: Language) {
     try {
       const { page, sub_category, location } = filter;
       let { work_format, level } = filter;
@@ -115,7 +115,15 @@ export class JobPostsService {
         select: ['id', 'name', 'subCategory'],
       });
 
-      const queryBuilder = this.jobPostRepo.createQueryBuilder('job');
+      const queryBuilder = this.jobPostRepo
+        .createQueryBuilder('job')
+        .leftJoinAndSelect('job.subCategory', 'subCategory')
+        .leftJoinAndSelect(
+          'subCategory.translations',
+          'subCategoryTranslations',
+          'subCategoryTranslations.lang = :lang',
+          { lang },
+        );
 
       console.log('Query builder yaratdi');
 
@@ -145,7 +153,7 @@ export class JobPostsService {
       console.log('Level topildi');
 
       if (location) {
-        queryBuilder.andWhere('job.location = :address', { location });
+        queryBuilder.andWhere('job.address = :location', { location });
       }
 
       console.log('Location topildi');
@@ -196,7 +204,7 @@ export class JobPostsService {
         select: ['id', 'name', 'subCategory'],
       });
 
-      if (!subCategoryId) {
+      if (!subCategoryId || !subCategoryId.subCategory.id) {
         throw new NotFoundException('Sub category not found');
       }
 
@@ -210,6 +218,8 @@ export class JobPostsService {
         telegram_username,
         user_id,
         image_path,
+        type: Post_Type.VACANCY,
+        post_status: Post_Status.PENDING,
       });
 
       await this.jobPostRepo.save(newVacancy);

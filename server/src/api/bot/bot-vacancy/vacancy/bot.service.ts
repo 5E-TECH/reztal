@@ -1,6 +1,7 @@
 import { name } from './../../../../../node_modules/ci-info/index.d';
 import { Injectable } from '@nestjs/common';
 import { createCanvas, loadImage } from 'canvas';
+import { Console } from 'console';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Language } from 'src/common/enums';
@@ -121,31 +122,31 @@ export class BotVacancyService {
     const questions = this.getQuestions(lang);
     console.log('Questions:', questions);
 
-    if(step === 1) {
-      if('text' in msg && msg.text) {
+    if (step === 1) {
+      if ('text' in msg && msg.text) {
         const text = msg.text.trim();
         const translation = this.i18nService.getTranslation(lang);
         const categories = translation.category?.categories || [];
 
-        if(text === translation.category?.back) {
-          if(state.selectedCategory) {
+        if (text === translation.category?.back) {
+          if (state.selectedCategory) {
             delete state.selectedCategory;
             return {
               message: 'Kasbingizni tanlang: ',
               keyboard: this.i18nService.getCategoryKeyboard(lang),
-            }
+            };
           } else {
             this.employerStates.delete(chatId);
             return {
               message: 'Asosiy menyuga qaytdingiz',
-              keyboard: this.getKeyboard(lang, 'main')
-            }
+              keyboard: this.getKeyboard(lang, 'main'),
+            };
           }
         }
 
         // === 2. Kategoriya tanlash (avval tekshirish) ===
         const category = categories.find((cat: any) => cat.name === text);
-        if(category) {
+        if (category) {
           state.selectedCategory = category.name;
 
           this.employerStates.set(chatId, state);
@@ -160,8 +161,10 @@ export class BotVacancyService {
 
         // === 3. SUBKATEGORIYA TANLASH (KEYIN TEKSHIRISH) ===
         // Faqat agar kategoriya tanlangan bo'lsa
-        if(state.selectedCategory) {
-          const currentCategory = categories.find((cat: any) => cat.name === state.selectedCategory);
+        if (state.selectedCategory) {
+          const currentCategory = categories.find(
+            (cat: any) => cat.name === state.selectedCategory,
+          );
           if (
             currentCategory &&
             currentCategory.sub_categories &&
@@ -198,33 +201,73 @@ export class BotVacancyService {
             ),
           };
         }
-
       }
     }
 
-    // STEP 5-7 ni ham qo'shing (maosh, talablar, username)
-    if (step >= 5 && step <= 7) {
-      if ('text' in msg) {
-        state.answers[step] = msg.text;
-        state.step++;
-
-        console.log('New step after 5-7:', state.step);
-
-        // Agar 8-qadamga o'tilsa (telefon)
-        if (state.step === 8) {
-          return {
-            message: questions[7], // 8. Telefon raqam?
-            keyboard: this.getKeyboard(lang, 'phone'),
-          };
-        }
-
-        // Keyingi savolni qaytarish
-        return { message: questions[state.step - 1] };
+    if (step === 2) {
+      if ('text' in msg && msg.text) {
+        state.answers[2] = msg.text;
+        state.step = 3;
+        return {
+          message: questions[2], // 4. Ish turi?
+          keyboard: this.getKeyboard(lang, 'work_types'),
+        };
       }
-      return null;
     }
 
-    // STEP 8 - Phone (special handling)
+    if (step === 3) {
+      if ('text' in msg && msg.text) {
+        state.answers[3] = msg.text;
+        state.step = 4;
+        return {
+          message: questions[3], // 4. Ish turi?
+          keyboard: this.getKeyboard(lang, 'regions'),
+        };
+      }
+    }
+
+    if (step === 4) {
+      if ('text' in msg && msg.text) {
+        state.answers[4] = msg.text;
+        state.step = 5;
+        return {
+          message: questions[4], // 4. Ish turi?
+          keyboard: this.getKeyboard(lang, 'level'),
+        };
+      }
+    }
+
+    if (step === 5) {
+      if ('text' in msg && msg.text) {
+        state.answers[5] = msg.text;
+        state.step = 6;
+        return {
+          message: questions[5], // 4. Ish turi?
+        };
+      }
+    }
+
+    if (step === 6) {
+      if ('text' in msg && msg.text) {
+        state.answers[6] = msg.text;
+        state.step = 7;
+        return {
+          message: questions[6], // 4. Ish turi?
+        };
+      }
+    }
+
+    if (step === 7) {
+      if ('text' in msg && msg.text) {
+        state.answers[7] = msg.text;
+        state.step = 8;
+        return {
+          message: questions[7],
+          keyboard: this.getKeyboard(lang, 'phone'),
+        };
+      }
+    }
+
     if (step === 8) {
       let phone = '';
 
@@ -235,9 +278,7 @@ export class BotVacancyService {
       }
 
       if (phone) {
-        const cleanedPhone = this.cleanPhoneNumber(phone);
-        const validation = this.validatePhoneNumber(cleanedPhone);
-
+        const validation = this.validatePhoneNumber(phone);
         if (!validation.isValid) {
           return {
             message: validation.message!,
@@ -245,13 +286,9 @@ export class BotVacancyService {
           };
         }
 
-        state.answers[8] = cleanedPhone;
+        state.answers[8] = this.cleanPhoneNumber(phone);
         state.step = 9;
-
-        return {
-          confirmation: true,
-          answers: state.answers,
-        };
+        return { message: questions[8] };
       }
 
       return {
@@ -260,39 +297,34 @@ export class BotVacancyService {
       };
     }
 
-    // Step 1-4 uchun (oldingi kod)
-    if ('text' in msg) {
-      state.answers[step] = msg.text;
-    } else {
-      return null;
-    }
+    if (step === 9) {
+      if ('text' in msg && msg.text) {
+        const username = msg.text.trim();
 
-    state.step++;
+        if (!username.startsWith('@')) {
+          return { message: 'errors.username_invalid' };
+        }
 
-    // Special steps with keyboards
-    if (state.step === 3) {
+        if (username.length < 2) {
+          return { message: 'errors.username_invalid' };
+        }
+
+        state.answers[9] = username;
+
+        this.setEmployerState(chatId, state);
+        return {
+          confirmation: true,
+          answers: state.answers,
+          gender: state.gender,
+        };
+      }
       return {
-        message: questions[2], // 3. Hudud?
-        keyboard: this.getKeyboard(lang, 'regions'),
+        message: questions[8],
+        keyboard: { remove_keyboard: true },
       };
     }
 
-    if (state.step === 4) {
-      return {
-        message: questions[3], // 4. Ish turi?
-        keyboard: this.getKeyboard(lang, 'work_types'),
-      };
-    }
-
-    // Completion
-    if (state.step > questions.length) {
-      return {
-        confirmation: true,
-        answers: state.answers,
-      };
-    }
-
-    return { message: questions[state.step - 1] };
+    return null;
   }
 
   // Generate vacancy image
@@ -311,12 +343,13 @@ export class BotVacancyService {
 
     const job = data[1] || '';
     const company = data[2] || '';
-    const region = data[3] || '';
-    const workType = data[4] || '';
-    const salary = data[5] || '';
+    const workType = data[3] || '';
+    const region = data[4] || '';
+    const level = data[5] || '';
     const requirements = data[6] || '';
-    const username = data[7] || '';
-    const phone = data[8] || '';
+    const salary = data[7] || '';
+    const username = data[8] || '';
+    const phone = data[9] || '';
 
     ctx.fillStyle = '#000';
     ctx.font = 'bold 80px Sans';
@@ -341,8 +374,9 @@ export class BotVacancyService {
     const caption = `
 💼 Kasb: ${job}
 🏢 Kompaniya: ${company}
-📍 Hudud: ${region}
 🖥️ Ish turi: ${workType}
+📍 Hudud: ${region}
+Level: ${level}
 💰 Maosh: ${salary}
 📋 Talablar: ${requirements}
 

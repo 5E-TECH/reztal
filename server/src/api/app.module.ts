@@ -19,6 +19,7 @@ import { BotVacancyService } from './bot/bot-vacancy/vacancy/bot.service';
 import { BotSearchWorkService } from './bot/bot-rezume/search-work/bot.search-work.service';
 import { session, Telegraf } from 'telegraf';
 import { MySession } from './bot/common/interfaces';
+import { Language } from 'src/common/enums';
 // import { LocalSession } from 'telegraf-session-local';
 
 @Module({
@@ -42,6 +43,7 @@ import { MySession } from './bot/common/interfaces';
                 level: null,
                 location: null,
                 page: 1,
+                language: Language.UZ,
               },
               category: null,
             }),

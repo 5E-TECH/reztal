@@ -38,8 +38,8 @@ export class JobPostsEntity extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   age: string;
 
-  @Column({ type: 'varchar' })
-  address: string;
+  @Column({ type: 'varchar', nullable: true })
+  address: string | null;
 
   @Column({ type: 'text', nullable: true })
   language: string;
