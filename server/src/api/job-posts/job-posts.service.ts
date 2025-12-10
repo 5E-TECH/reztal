@@ -13,8 +13,7 @@ import { UserEntity } from 'src/core/entity/user.entity';
 import type { UserRepository } from 'src/core/repository/user.repository';
 import { DataSource, In } from 'typeorm';
 import { JobFilterDto } from './dto/job-filter.dto';
-import { CategoryEntity } from 'src/core/entity/category.entity';
-import type { CategoryRepository } from 'src/core/repository/category.repository';
+import { CreateVacancyDto } from './dto/create-vacancy.dto';
 
 @Injectable()
 export class JobPostsService {
@@ -51,8 +50,6 @@ export class JobPostsService {
         relations: ['subCategory'],
         select: ['id', 'name', 'subCategory'],
       });
-
-      console.log(subCategoryId);
 
       if (!subCategoryId) {
         throw new NotFoundException('Sub category not found');
@@ -175,6 +172,50 @@ export class JobPostsService {
     } catch (error) {
       console.log(error);
 
+      return catchError(error);
+    }
+  }
+
+  async createVacancy(createVacancyDto: CreateVacancyDto) {
+    try {
+      const {
+        image_path,
+        level,
+        salary,
+        skills,
+        sub_category,
+        telegram_username,
+        user_id,
+        work_format,
+        address,
+      } = createVacancyDto;
+
+      const subCategoryId = await this.subCatTraRepo.findOne({
+        where: { name: sub_category },
+        relations: ['subCategory'],
+        select: ['id', 'name', 'subCategory'],
+      });
+
+      if (!subCategoryId) {
+        throw new NotFoundException('Sub category not found');
+      }
+
+      const newVacancy = this.jobPostRepo.create({
+        sub_category_id: subCategoryId.subCategory.id,
+        level,
+        work_format,
+        skills,
+        salary,
+        address,
+        telegram_username,
+        user_id,
+        image_path,
+      });
+
+      await this.jobPostRepo.save(newVacancy);
+
+      return successRes(newVacancy, 201, 'New Vacancy created');
+    } catch (error) {
       return catchError(error);
     }
   }
