@@ -498,15 +498,16 @@ export class BotRezumeService {
 
   // Generate image
   async generateImage(data: any, gender?: string) {
-    const uploadsDir = path.resolve(process.cwd(), 'src', 'uploads');
+    const uploadsDir = path.resolve(process.cwd(), '../', 'uploads');
+    const assetsDir = path.resolve(process.cwd(), 'src', 'assets');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
     const templatePath =
       gender === 'female'
-        ? path.join(uploadsDir, 'women_template.png')
-        : path.join(uploadsDir, 'template.png');
+        ? path.join(assetsDir, 'women_template.png')
+        : path.join(assetsDir, 'template.png');
 
     const img = await loadImage(templatePath);
     const canvas = createCanvas(img.width, img.height);

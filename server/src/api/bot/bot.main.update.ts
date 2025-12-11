@@ -309,6 +309,8 @@ export class BotMainUpdate {
   // ===== TIL TANLASH =====
   @Action(/lang_(uz|ru|en)/)
   async handleLanguageSelection(@Ctx() ctx: Context) {
+    console.log(ctx);
+
     const callbackQuery = ctx.callbackQuery;
     if (!callbackQuery || !('data' in callbackQuery)) return;
 
@@ -337,7 +339,6 @@ export class BotMainUpdate {
     const dto = { telegram_id: String(ctx.chat?.id) };
     try {
       const user = await this.userService.getAdmin(dto);
-      console.log(user);
 
       if (ctx.chat?.type === 'private') {
         if (user.statusCode && `${user.statusCode}`.startsWith('2')) {
@@ -397,12 +398,12 @@ export class BotMainUpdate {
 
   // ===== MESSAGE HANDLER =====
   @On('message')
-  async onMessage(@Ctx() ctx, lang: Language) {
+  async onMessage(@Ctx() ctx) {
+    const userId = ctx.from!.id.toString();
+    const chatId = ctx.chat!.id.toString();
+
     const msg = ctx.message;
     if (!msg) return;
-
-    const chatId = ctx.chat!.id.toString();
-    const userId = ctx.from!.id.toString();
 
     // User tilini olish
     const userLang = this.userLanguageService.getUserLanguage(userId);
@@ -519,8 +520,6 @@ export class BotMainUpdate {
 
       // 1. AVVAL "search_job" tugmasi bosilganda
       if (msg.text === this.t(userLang, 'search_job')) {
-        console.log('Search jobga kirdi', msg.text);
-
         // Sessionni ishga tushirish
         // if (!ctx.session || ctx.session.step === undefined) {
         //   ctx.session = {
@@ -536,7 +535,7 @@ export class BotMainUpdate {
 
         // Kategoriyalarni chiqarish
         await ctx.reply('Iltimos, kategoriyani tanlang:', {
-          reply_markup: this.i18nService.getCategoryKeyboard(lang),
+          reply_markup: this.i18nService.getCategoryKeyboard(userLang),
         });
 
         // Stepni 1 ga o'zgartirish
@@ -550,17 +549,13 @@ export class BotMainUpdate {
         ctx.session.step !== undefined &&
         ctx.session.step > 0
       ) {
-        console.log('Search jarayonida, step:', ctx.session.step);
-
         const step = ctx.session.step;
 
         const text = msg.text.trim();
-        const translation = this.i18nService.getTranslation(lang);
+        const translation = this.i18nService.getTranslation(userLang);
 
         // ================ STEP 1: KATEGORIYANI QABUL QILISH ================
         if (step === 1) {
-          console.log('STEP 1 - Kategoriya qabul qilinmoqda');
-
           // Foydalanuvchi yuborgan kategoriyani tekshirish
 
           const categories = translation.category?.categories || [];
@@ -568,8 +563,6 @@ export class BotMainUpdate {
           const category = categories.find((cat: any) => cat.name === text);
 
           if (category) {
-            console.log('Kategoriya tanlandi:', category.name);
-
             // Kategoriyani sessionga saqlash
             ctx.session.category = category.name;
 
@@ -578,7 +571,7 @@ export class BotMainUpdate {
               `${category.name} kategoriyasidan pastagi mutaxassislikni tanlang:`,
               {
                 reply_markup: this.i18nService.getSubCategoryKeyboard(
-                  lang,
+                  userLang,
                   category.name,
                 ),
               },
@@ -592,7 +585,7 @@ export class BotMainUpdate {
             await ctx.reply(
               "Noto'g'ri kategoriya. Iltimos, qaytadan tanlang:",
               {
-                reply_markup: this.i18nService.getCategoryKeyboard(lang),
+                reply_markup: this.i18nService.getCategoryKeyboard(userLang),
               },
             );
             // STEP 1 da qolamiz
@@ -602,8 +595,6 @@ export class BotMainUpdate {
 
         // ================ STEP 2: SUBCATEGORY QABUL QILISH ================
         if (step === 2) {
-          console.log('STEP 2 - Subkategoriya qabul qilinmoqda');
-
           if (!ctx.session.category) {
             // Agar kategoriya yo'q bo'lsa, qayta boshlash
             ctx.session.step = 0;
@@ -611,30 +602,21 @@ export class BotMainUpdate {
             return;
           }
 
-          const translation = this.i18nService.getTranslation(lang);
+          const translation = this.i18nService.getTranslation(userLang);
           const categories = translation.category?.categories || [];
-
-          console.log('Categoriyalar', categories);
 
           const category = categories.find(
             (cat: any) => cat.name === ctx.session.category,
           );
 
-          console.log('BU TANLANGAN CATEGORY', category);
-
           if (category && category.sub_categories) {
             const subcategories = category.sub_categories;
-            console.log('SUBCATEGORIYALAR', subcategories);
 
             const selectedSubcategory = subcategories.find(
               (sub: any) => sub === msg.text.trim(),
             );
 
-            console.log('TANLANGAN SUB-CAT', selectedSubcategory);
-
             if (selectedSubcategory) {
-              console.log('Subkategoriya tanlandi:', selectedSubcategory);
-
               // Subkategoriyani sessionga saqlash
               ctx.session.filter.sub_category = selectedSubcategory;
 
@@ -655,7 +637,9 @@ export class BotMainUpdate {
               );
 
               // Keyingi filterni so'rash
-              await this.botSerchWorkService.askNextField(ctx, lang);
+              console.log('LANGUAGE IN UPDATE: ', userLang);
+
+              await this.botSerchWorkService.askNextField(ctx, userLang);
               return;
             }
           }
@@ -665,7 +649,7 @@ export class BotMainUpdate {
             "Noto'g'ri mutaxassislik. Iltimos, qaytadan tanlang:",
             {
               reply_markup: this.i18nService.getSubCategoryKeyboard(
-                lang,
+                userLang,
                 ctx.session.category,
               ),
             },
@@ -675,17 +659,16 @@ export class BotMainUpdate {
 
         if (step === 3) {
           const levels = translation.level;
-          console.log('LEVELLAR', levels);
           const level = text.toLowerCase();
           const currentLevel = levels[level];
           if (currentLevel) {
             ctx.session.filter.level = currentLevel;
             ctx.session.step = 4;
             await ctx.reply(`✅ Tanlandi: ${currentLevel}`);
-            await this.botSerchWorkService.askNextField(ctx, lang);
+            await this.botSerchWorkService.askNextField(ctx, userLang);
           } else {
             await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
-            await this.botSerchWorkService.askNextField(ctx, lang);
+            await this.botSerchWorkService.askNextField(ctx, userLang);
           }
 
           // Stepni 3 ga o'zgartirish
@@ -694,7 +677,6 @@ export class BotMainUpdate {
         }
         if (step === 4) {
           const workTypes = translation.work_types;
-          console.log('Formats: ', workTypes);
           const work_type = workTypes.includes(text);
           if (work_type) {
             ctx.session.filter.work_format = text;
@@ -704,24 +686,23 @@ export class BotMainUpdate {
               ctx.session.step = 5;
             }
             await ctx.reply(`✅ Tanlandi: ${text}`);
-            await this.botSerchWorkService.askNextField(ctx, lang);
+            await this.botSerchWorkService.askNextField(ctx, userLang);
           } else {
             await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
-            await this.botSerchWorkService.askNextField(ctx, lang);
+            await this.botSerchWorkService.askNextField(ctx, userLang);
           }
         }
         if (step === 5) {
           const regions = translation.regions;
-          console.log('Regions: ', regions);
           const exists = regions.flat().includes(text);
           if (exists) {
             ctx.session.filter.location = text;
             ctx.session.step = 6;
             await ctx.reply(`✅ Tanlandi: ${text}`);
-            await this.botSerchWorkService.askNextField(ctx, lang);
+            await this.botSerchWorkService.askNextField(ctx, userLang);
           } else {
             await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
-            await this.botSerchWorkService.askNextField(ctx, lang);
+            await this.botSerchWorkService.askNextField(ctx, userLang);
           }
         }
       }
@@ -776,7 +757,6 @@ export class BotMainUpdate {
     chatId: string,
     lang: Language,
   ) {
-    console.log('====== VACANCY FLOW ========');
     // ===== CONFIRMATION MODE =====
     if (state.confirmationMode) {
       if ('text' in msg && msg.text) {
@@ -802,8 +782,6 @@ export class BotMainUpdate {
 
             const userCreateResponse =
               await this.userService.createHr(userData);
-
-            console.log('HR yaratildi: ', userCreateResponse);
 
             if (!`${userCreateResponse.statusCode}`.startsWith('2')) {
               return 'Error on creating user';
@@ -834,6 +812,8 @@ export class BotMainUpdate {
               selectedFormat = Work_Format.ONLINE;
             }
 
+            console.log('YARATILGAN USER: ', userCreateResponse.data);
+
             const vacancyData = {
               sub_category: String(state.answers[1]),
               level: selectedLevel,
@@ -852,7 +832,7 @@ export class BotMainUpdate {
             const createVacancy =
               await this.jobPostsService.createVacancy(vacancyData);
 
-            console.log('Vacancy yaratildi: ', createVacancy);
+            console.log('CREATED VACANCY: ', createVacancy);
 
             const post = await this.botAdminService.addPost({
               type: Post_Type.VACANCY,
@@ -875,15 +855,12 @@ export class BotMainUpdate {
                 ctx.telegram,
               );
 
-            console.log('Notify resylt ', notifyResult);
-
             const dto = {
               job_posts_id: createVacancy.data.id,
               message_id: notifyResult,
             };
             const postForGroup =
               await this.jobPostsTelegramService.createPostForGroup(dto);
-            console.log('POST FOR GROUP: ', postForGroup);
             await ctx.replyWithPhoto(
               { source: result.imagePath },
               {
@@ -903,7 +880,6 @@ export class BotMainUpdate {
             this.botVacancyService.deleteEmployerState(chatId);
             return;
           } catch (error) {
-            console.log('Vacancy flowda xatolik', error);
             return error;
           }
         }
@@ -1127,8 +1103,6 @@ export class BotMainUpdate {
       chatId,
       msg,
     );
-
-    console.log('Result from BotVacancyService:', result);
 
     if (!result) return;
 
@@ -1827,8 +1801,6 @@ export class BotMainUpdate {
   // ===== CALLBACK QUERY HANDLER - Post amallari =====
   @Action(/approve_|reject_|edit_/)
   async handlePostAction(@Ctx() ctx: Context) {
-    console.log('Callback query received');
-
     const callbackQuery = ctx.callbackQuery;
     if (!callbackQuery || !('data' in callbackQuery)) return;
 
@@ -1847,7 +1819,6 @@ export class BotMainUpdate {
       }
 
       const messageId = message.message_id;
-      console.log('Message id: ', messageId);
 
       if (data.startsWith('approve_')) {
         const post = await this.botAdminService.approvePost(
@@ -1857,8 +1828,6 @@ export class BotMainUpdate {
 
         const jobPostChannel =
           await this.jobPostsTelegramService.createPostForChannel(Object(post));
-
-        console.log('Yakuniy natija: ', jobPostChannel.message);
 
         try {
           // Botdagi post xabarini o'chirish

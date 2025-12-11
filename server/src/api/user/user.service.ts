@@ -137,7 +137,7 @@ export class UserService {
         hashedPassword = await this.bcrypt.encrypt(password);
       }
 
-      const newCandidate = this.userRepo.create({
+      const newUser = this.userRepo.create({
         name,
         phone_number,
         password: hashedPassword,
@@ -147,9 +147,9 @@ export class UserService {
         add_resume: false,
       });
 
-      await this.userRepo.save(newCandidate);
+      await this.userRepo.save(newUser);
 
-      return successRes({}, 201, 'New candidate created');
+      return successRes({ id: newUser.id }, 201, 'New candidate created');
     } catch (error) {
       return catchError(error);
     }

@@ -107,7 +107,7 @@ export class JobPostsService {
       const limit = 5;
       const skip = (page - 1) * limit;
 
-      console.log('Work filterga kirdi: ', filter);
+      console.log('LANGUAGE: ', lang);
 
       const subCategoryId = await this.subCatTraRepo.findOne({
         where: { name: sub_category },
@@ -118,14 +118,13 @@ export class JobPostsService {
       const queryBuilder = this.jobPostRepo
         .createQueryBuilder('job')
         .leftJoinAndSelect('job.subCategory', 'subCategory')
+        .leftJoinAndSelect('job.user', 'user')
         .leftJoinAndSelect(
           'subCategory.translations',
           'subCategoryTranslations',
           'subCategoryTranslations.lang = :lang',
           { lang },
         );
-
-      console.log('Query builder yaratdi');
 
       // Filterlarni qo'llash
       if (subCategoryId) {
@@ -134,8 +133,6 @@ export class JobPostsService {
         });
       }
 
-      console.log('Sub category topildi');
-
       if (work_format) {
         work_format = work_format.toLowerCase();
         queryBuilder.andWhere('job.work_format = :work_format', {
@@ -143,26 +140,22 @@ export class JobPostsService {
         });
       }
 
-      console.log('Work format topildi');
-
       if (level) {
         level = level.toLowerCase();
         queryBuilder.andWhere('job.level = :level', { level });
       }
 
-      console.log('Level topildi');
-
       if (location) {
         queryBuilder.andWhere('job.address = :location', { location });
       }
 
-      console.log('Location topildi');
       // Pagination
       queryBuilder.skip(skip).take(limit);
 
       // Natijalarni olish
       const [jobs, total] = await queryBuilder.getManyAndCount();
-      console.log('Natija: ', jobs);
+      console.log('Natija: ', jobs[0].subCategory.translations);
+      console.log('Natija: ', jobs[0].user);
 
       return successRes(
         {
