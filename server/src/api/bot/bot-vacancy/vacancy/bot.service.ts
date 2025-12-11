@@ -329,12 +329,13 @@ export class BotVacancyService {
 
   // Generate vacancy image
   async generateVacancyImage(data: any) {
-    const uploadsDir = path.resolve(process.cwd(), 'src', 'uploads');
+    const uploadsDir = path.resolve(process.cwd(), '../', 'uploads');
+    const assetsDir = path.resolve(process.cwd(), 'src', 'assets');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    const templatePath = path.join(uploadsDir, 'employer_template.png');
+    const templatePath = path.join(assetsDir, 'employer_template.png');
     const img = await loadImage(templatePath);
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext('2d');
