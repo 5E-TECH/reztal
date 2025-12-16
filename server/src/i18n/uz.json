@@ -259,7 +259,7 @@
 
   "edit_prompt": "✏️ Qaysi maydonni tahrirlamoqchisiz?",
   "enter_new_value": "Yangi qiymatni kiriting:",
-  "select_from_list": "Quyidagilardan birini tanlang:",
+  "select_from_list": "Quyidagilardan birini tanlang:\n✅ Tanlangan:",
   "finish_editing": "✅ Tahrirlashni yakunlash",
   "add_another": "➕ Boshqa qo'shish",
   "done": "🟢 Tayyor"

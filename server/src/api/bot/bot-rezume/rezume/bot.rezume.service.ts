@@ -359,7 +359,7 @@ export class BotRezumeService {
           if (state.answers[9].includes(text)) {
             state.awaitingLanguageText = false;
             return {
-              message: 'errors.language_already_selected', // Yangi xabar qo'shish kerak
+              message: 'Siz bu tilni tanlagansiz, boshqa til tanlang', // Yangi xabar qo'shish kerak
               keyboard: this.getKeyboard(lang, 'languages'),
             };
           }
@@ -394,14 +394,14 @@ export class BotRezumeService {
           // Til allaqachon tanlanganligini tekshirish
           if (state.answers[9].includes(text)) {
             return {
-              message: 'errors.language_already_selected', // "Siz bu tilni tanlagansiz, boshqa til tanlang"
+              message: 'Siz bu tilni tanlagansiz, boshqa til tanlang', // "Siz bu tilni tanlagansiz, boshqa til tanlang"
               keyboard: this.getKeyboard(lang, 'languages'),
             };
           } else {
             // Yangi tilni qo'shish
             state.answers[9].push(text);
             return {
-              message: 'select_from_list',
+              message: `${this.i18nService.t(lang, 'select_from_list')} ${state.answers[9].join(', ')}`,
               keyboard: this.getKeyboard(lang, 'languages'),
             };
           }
