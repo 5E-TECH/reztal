@@ -497,12 +497,28 @@ export class BotRezumeService {
   }
 
   // Generate image
+  private drawExtraBoldText(
+    ctx: any,
+    text: string,
+    x: number,
+    y: number,
+    iterations = 2, // hozir 4 edi, 2 ga kamaytirdik
+    offset = 1, // siljish pikselini boshqarish
+  ) {
+    const half = Math.floor(iterations / 2);
+    for (let dx = -half; dx <= half; dx++) {
+      for (let dy = -half; dy <= half; dy++) {
+        ctx.fillText(text, x + dx * offset, y + dy * offset);
+      }
+    }
+  }
+
+  // ===== Generate image with extra bold effect =====
   async generateImage(data: any, gender?: string) {
     const uploadsDir = path.resolve(process.cwd(), '../', 'uploads');
     const assetsDir = path.resolve(process.cwd(), 'src', 'assets');
-    if (!fs.existsSync(uploadsDir)) {
+    if (!fs.existsSync(uploadsDir))
       fs.mkdirSync(uploadsDir, { recursive: true });
-    }
 
     const templatePath =
       gender === 'female'
@@ -512,7 +528,6 @@ export class BotRezumeService {
     const img = await loadImage(templatePath);
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext('2d');
-
     ctx.drawImage(img, 0, 0);
 
     const name = data[5] || '';
@@ -521,28 +536,36 @@ export class BotRezumeService {
     const salary = data[4] || '';
     const exp = data[3] || '';
 
+    // --- Name & Age ---
     ctx.fillStyle = '#606060';
-    ctx.font = 'bold 40px Sans';
-    ctx.fillText(name, 450, 780);
-    ctx.fillText(age + ' yosh', 1200, 780);
+    ctx.font = 'bold 60px Sans';
+    this.drawExtraBoldText(ctx, name, 450, 760);
+    this.drawExtraBoldText(ctx, age + ' yosh', 1200, 760);
 
+    // --- Job ---
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 90px Sans';
-    ctx.fillText(job, 700, 1050);
+    ctx.font = 'bold 120px Sans';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const centerX = canvas.width / 2;
+    const centerY = 1050;
+    this.drawExtraBoldText(ctx, job, centerX, centerY);
 
+    // --- Salary & Experience ---
     ctx.fillStyle = '#606060';
-    ctx.font = 'bold 40px Sans';
-    ctx.fillText(salary, 450, 1320);
-    ctx.fillText(exp, 1200, 1320);
+    ctx.font = 'bold 60px Sans';
+    this.drawExtraBoldText(ctx, salary, 450, 1310);
+    this.drawExtraBoldText(ctx, exp, 1200, 1300);
 
+    // --- Save image ---
     const imgName = `output_${Date.now()}.png`;
     const fileName = path.join(uploadsDir, imgName);
     const out = fs.createWriteStream(fileName);
     const stream = canvas.createPNGStream();
     stream.pipe(out);
-
     await new Promise<void>((resolve) => out.on('finish', () => resolve()));
 
+    // --- Caption ---
     const caption = `
 ▫️Kasbi: ${job}
 ▫️Tajribasi: ${exp}
