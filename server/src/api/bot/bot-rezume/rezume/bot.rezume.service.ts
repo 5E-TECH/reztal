@@ -502,7 +502,7 @@ export class BotRezumeService {
     text: string,
     x: number,
     y: number,
-    iterations = 2, // hozir 4 edi, 2 ga kamaytirdik
+    iterations = 1, // hozir 4 edi, 2 ga kamaytirdik
     offset = 1, // siljish pikselini boshqarish
   ) {
     const half = Math.floor(iterations / 2);
@@ -539,8 +539,8 @@ export class BotRezumeService {
     // --- Name & Age ---
     ctx.fillStyle = '#606060';
     ctx.font = 'bold 60px Sans';
-    this.drawExtraBoldText(ctx, name, 450, 760);
-    this.drawExtraBoldText(ctx, age + ' yosh', 1200, 760);
+    this.drawExtraBoldText(ctx, name, 400, 770);
+    this.drawExtraBoldText(ctx, age + ' yosh', 1130, 770);
 
     // --- Job ---
     ctx.fillStyle = '#000';
@@ -555,7 +555,7 @@ export class BotRezumeService {
     ctx.fillStyle = '#606060';
     ctx.font = 'bold 60px Sans';
     this.drawExtraBoldText(ctx, salary, 450, 1310);
-    this.drawExtraBoldText(ctx, exp, 1200, 1300);
+    this.drawExtraBoldText(ctx, exp, 1200, 1310);
 
     // --- Save image ---
     const imgName = `output_${Date.now()}.png`;
