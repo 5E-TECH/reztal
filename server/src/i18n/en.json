@@ -255,7 +255,7 @@
 
   "edit_prompt": "✏️ Which field would you like to edit?",
   "enter_new_value": "Enter new value:",
-  "select_from_list": "Select one of the following:",
+  "select_from_list": "Select one from the list below:\n✅ Selected:",
   "finish_editing": "✅ Finish editing",
   "add_another": "➕ Add another",
   "done": "🟢 Done"
