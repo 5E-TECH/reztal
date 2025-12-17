@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import config from 'src/config';
 import { MyLogger } from 'src/logger/logger.service';
+import { join } from 'path';
 
 @Injectable()
 export default class Application {
@@ -18,8 +19,8 @@ export default class Application {
     const myLogger = app.get(MyLogger);
     app.useLogger(myLogger);
 
-    const uploadDir = 'home/ubuntu/uploads';
-    app.use('/uploads', express.static(uploadDir));
+    // const uploadDir = 'home/ubuntu/uploads';
+    app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
     app.use(express.static('public'));
 

@@ -84,7 +84,12 @@ export class I18nService {
     return this.t(lang, key, params);
   }
 
-  getKeyboard(lang: Language, keyboardType: string): any {
+  getKeyboard(
+    lang: Language,
+    keyboardType: string,
+    currentPage?: number,
+    totalPages?: number,
+  ): any {
     const translation = this.getTranslation(lang);
 
     switch (keyboardType) {
@@ -181,6 +186,35 @@ export class I18nService {
             ],
           ],
         };
+
+      case 'paginate':
+        const buttons: object[] = [];
+
+        // Oldingi sahifa tugmasi
+        if (currentPage && currentPage > 1) {
+          buttons.push({
+            text: translation.paginate_btns.previous,
+            callback_data: 'paginate_prev',
+          });
+        }
+
+        // Sahifa raqami
+        if (currentPage && totalPages) {
+          buttons.push({
+            text: `${currentPage} / ${totalPages}`,
+            callback_data: 'noop',
+          });
+        }
+
+        // Keyingi sahifa tugmasi
+        if (currentPage && totalPages && currentPage < totalPages) {
+          buttons.push({
+            text: translation.paginate_btns.next,
+            callback_data: 'paginate_next',
+          });
+        }
+
+        return { inline_keyboard: [buttons] };
 
       default:
         return { remove_keyboard: true };

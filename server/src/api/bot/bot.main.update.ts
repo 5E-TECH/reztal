@@ -396,6 +396,71 @@ export class BotMainUpdate {
     }
   }
 
+  @Action('paginate_next')
+  async paginateNext(@Ctx() ctx) {
+    console.log('NEXT BOSILDI.............');
+
+    // ✅ Callback query'ni darhol javoblash
+    await ctx.answerCbQuery();
+
+    if (!ctx.session.filter) return;
+
+    const userLang = this.userLanguageService.getUserLanguage(
+      ctx.from!.id.toString(),
+    );
+
+    // ✅ Avval natijalarni olish
+    const results = await this.jobPostsService.workFilter(
+      ctx.session.filter,
+      userLang,
+    );
+
+    const totalPages = results.data.meta.totalPages || 1;
+
+    if (!ctx.session.filter.page) {
+      ctx.session.filter.page = 1;
+    }
+
+    // ✅ Sahifa chegarasini tekshirish
+    if (ctx.session.filter.page >= totalPages) {
+      await ctx.answerCbQuery('Bu oxirgi sahifa');
+      return;
+    }
+
+    // ✅ Sahifani oshirish
+    ctx.session.filter.page += 1;
+    console.log('Yangi sahifa:', ctx.session.filter.page);
+
+    // ✅ Yangi natijalarni ko'rsatish
+    await this.botSerchWorkService.showResults(ctx, userLang);
+
+    console.log('NEXT TUGADI...............');
+  }
+
+  @Action('paginate_prev')
+  async paginatePrev(@Ctx() ctx) {
+    // ✅ Callback query'ni darhol javoblash
+    await ctx.answerCbQuery();
+
+    if (!ctx.session.filter) return;
+
+    const userLang = this.userLanguageService.getUserLanguage(
+      ctx.from!.id.toString(),
+    );
+
+    if (!ctx.session.filter.page || ctx.session.filter.page <= 1) {
+      await ctx.answerCbQuery('Bu birinchi sahifa');
+      return;
+    }
+
+    // ✅ Sahifani kamaytirish
+    ctx.session.filter.page -= 1;
+    console.log('Yangi sahifa:', ctx.session.filter.page);
+
+    // ✅ Yangi natijalarni ko'rsatish
+    await this.botSerchWorkService.showResults(ctx, userLang);
+  }
+
   // ===== MESSAGE HANDLER =====
   @On('message')
   async onMessage(@Ctx() ctx) {
@@ -520,16 +585,6 @@ export class BotMainUpdate {
 
       // 1. AVVAL "search_job" tugmasi bosilganda
       if (msg.text === this.t(userLang, 'search_job')) {
-        // Sessionni ishga tushirish
-        // if (!ctx.session || ctx.session.step === undefined) {
-        //   ctx.session = {
-        //     step: 0,
-        //     category: null,
-        //     subcategory: null,
-        //     filters: {},
-        //   };
-        // }
-
         // Faqat step 0 ga qaytarish
         ctx.session.step = 0;
 
