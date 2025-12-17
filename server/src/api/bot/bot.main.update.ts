@@ -766,11 +766,11 @@ export class BotMainUpdate {
           if (formattedAnswers[7]) {
             formattedAnswers[7] = this.formatSalary(formattedAnswers[7]);
           }
-          if (formattedAnswers[9]) {
-            formattedAnswers[9] = this.formatPhone(formattedAnswers[9]);
-          }
           if (formattedAnswers[8]) {
-            formattedAnswers[8] = this.formatUsername(formattedAnswers[8]);
+            formattedAnswers[8] = this.formatPhone(formattedAnswers[8]);
+          }
+          if (formattedAnswers[9]) {
+            formattedAnswers[9] = this.formatUsername(formattedAnswers[9]);
           }
 
           try {
@@ -1833,6 +1833,7 @@ export class BotMainUpdate {
           // Botdagi post xabarini o'chirish
           // await ctx.deleteMessage();
 
+          await ctx.editMessageReplyMarkup({ inline_keyboard: [] }); // [citation:1]
           await ctx.answerCbQuery(this.t(lang, 'admin.post_approved_success'));
         } catch (error) {
           console.error("Post o'chirishda xatolik:", error);

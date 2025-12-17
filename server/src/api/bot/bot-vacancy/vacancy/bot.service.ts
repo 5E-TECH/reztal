@@ -83,6 +83,8 @@ export class BotVacancyService {
 
     let cleaned = phone.replace(/\s/g, '');
 
+    cleaned = cleaned.replace('@', '')
+
     if (cleaned.startsWith('+998')) {
       return cleaned;
     }
@@ -273,9 +275,15 @@ export class BotVacancyService {
 
       if ('contact' in msg && msg.contact) {
         phone = msg.contact.phone_number;
+        console.log('Kontakt yuborildi:', phone);
       } else if ('text' in msg && msg.text) {
-        phone = msg.text;
+        console.log('Text yuborildi:', msg.text);
+        phone = msg.text.trim();
       }
+
+      console.log('Original phone:', phone);
+      const cleanedPhone = this.cleanPhoneNumber(phone);
+      console.log('Cleaned phone:', cleanedPhone);
 
       if (phone) {
         const validation = this.validatePhoneNumber(phone);
@@ -349,8 +357,8 @@ export class BotVacancyService {
     const level = data[5] || '';
     const requirements = data[6] || '';
     const salary = data[7] || '';
-    const username = data[8] || '';
-    const phone = data[9] || '';
+    const phone = data[8] || '';
+    const username = data[9] || '';
 
     ctx.fillStyle = '#000';
     ctx.font = 'bold 80px Sans';
@@ -381,9 +389,9 @@ Level: ${level}
 💰 Maosh: ${salary}
 📋 Talablar: ${requirements}
 
+📞 Telefon: ${phone}
 👤 Telegram: ${username}
 
-📞 Telefon: ${phone}
 
 🪪 Vakansiya joylash: @Reztal_post
 `;
