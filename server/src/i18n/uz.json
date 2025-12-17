@@ -257,6 +257,11 @@
     "vacancy": "1: Kasb, 2: Kompaniya, 3: Hudud, 4: Ish turi, 5: Maosh, 6: Talablar, 7: Username, 8: Telefon"
   },
 
+  "paginate_btns": {
+    "next": "Keyingi ➡️",
+    "previous": "⬅️ Oldingi"
+  },
+
   "edit_prompt": "✏️ Qaysi maydonni tahrirlamoqchisiz?",
   "enter_new_value": "Yangi qiymatni kiriting:",
   "select_from_list": "Quyidagilardan birini tanlang:",

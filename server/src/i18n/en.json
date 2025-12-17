@@ -253,6 +253,11 @@
     "vacancy": "1: Profession, 2: Company, 3: Location, 4: Work type, 5: Salary, 6: Requirements, 7: Username, 8: Phone"
   },
 
+  "paginate_btns": {
+    "next": "Next ➡️",
+    "previous": "⬅️ Previous"
+  },
+
   "edit_prompt": "✏️ Which field would you like to edit?",
   "enter_new_value": "Enter new value:",
   "select_from_list": "Select one of the following:",

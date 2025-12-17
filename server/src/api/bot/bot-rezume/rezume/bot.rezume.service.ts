@@ -587,6 +587,11 @@ ${data[13] || ''}
 🪪 Rezyume joylash: @Reztal_post
 `;
 
-    return { imagePath: fileName, caption };
+    const imageUrl = `${process.env.APP_URL}/uploads/${imgName}`;
+
+    return {
+      imagePath: imageUrl, // 🔥 URL
+      caption,
+    };
   }
 }

@@ -102,12 +102,19 @@ export class JobPostsService {
 
   async workFilter(filter: JobFilterDto, lang: Language) {
     try {
-      const { page, sub_category, location } = filter;
+      let { page, sub_category, location } = filter;
       let { work_format, level } = filter;
-      const limit = 5;
+
+      // ✅ Pagination tekshiruvi
+      if (!page || page < 1) {
+        page = 1;
+      }
+
+      const limit = 1;
       const skip = (page - 1) * limit;
 
       console.log('LANGUAGE: ', lang);
+      console.log('CURRENT PAGE: ', page);
 
       const subCategoryId = await this.subCatTraRepo.findOne({
         where: { name: sub_category },
@@ -149,13 +156,16 @@ export class JobPostsService {
         queryBuilder.andWhere('job.address = :location', { location });
       }
 
+      // ✅ Tartiblash (masalan, yangilari birinchi)
+      queryBuilder.orderBy('job.created_at', 'DESC');
+
       // Pagination
       queryBuilder.skip(skip).take(limit);
 
       // Natijalarni olish
       const [jobs, total] = await queryBuilder.getManyAndCount();
-      console.log('Natija: ', jobs[0].subCategory.translations);
-      console.log('Natija: ', jobs[0].user);
+
+      console.log(`Natija: ${jobs.length} ta, Total: ${total}, Page: ${page}`);
 
       return successRes(
         {
@@ -172,7 +182,6 @@ export class JobPostsService {
       );
     } catch (error) {
       console.log(error);
-
       return catchError(error);
     }
   }
