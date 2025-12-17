@@ -269,8 +269,8 @@ ${typeText}
    <b>Daraja:</b>  ${data[5] || ''}
 📋 <b>Talablar:</b> ${data[6] || '...'}
 💰 <b>Maosh:</b> ${data[7] || '...'}
-👤 <b>Username:</b> ${data[8] || '...'}
-📞 <b>Telefon:</b> ${data[9] || '...'}
+📞 <b>Telefon:</b> ${data[8] || '...'}
+👤 <b>Username:</b> ${data[9] || '...'}
       `.trim();
     }
 
