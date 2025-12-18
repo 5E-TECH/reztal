@@ -72,6 +72,16 @@ export class JobPostsTelegramService {
         throw new NotFoundException('Telegram group post not found');
       }
 
+      console.log('REQUIRED ID: -----------', group.job_post.id);
+
+      const test = await queryRunner.manager.findOne(JobPostsEntity, {
+        where: {
+          id: group.job_post.id,
+        },
+      });
+
+      console.log('TEST -------------: ', test);
+
       const post = await queryRunner.manager.findOne(JobPostsEntity, {
         where: {
           id: group.job_post.id,
@@ -85,6 +95,8 @@ export class JobPostsTelegramService {
           'subCategory.category.translations',
         ],
       });
+
+      console.log('POST: ...............: ', post);
 
       if (!post) {
         throw new NotFoundException('Post not found');
@@ -116,12 +128,6 @@ export class JobPostsTelegramService {
             }
           : null,
       };
-
-      console.log(
-        'Filtered post with language:',
-        lang,
-        filteredPost.subCategory?.translations,
-      );
 
       await queryRunner.commitTransaction();
       return successRes(filteredPost, 200, 'Post accepted successfully');

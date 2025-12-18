@@ -322,8 +322,6 @@ export class BotMainUpdate {
   // ===== TIL TANLASH =====
   @Action(/lang_(uz|ru|en)/)
   async handleLanguageSelection(@Ctx() ctx: Context) {
-    console.log(ctx);
-
     const callbackQuery = ctx.callbackQuery;
     if (!callbackQuery || !('data' in callbackQuery)) return;
 
@@ -411,8 +409,6 @@ export class BotMainUpdate {
 
   @Action('paginate_next')
   async paginateNext(@Ctx() ctx) {
-    console.log('NEXT BOSILDI.............');
-
     // ✅ Callback query'ni darhol javoblash
     await ctx.answerCbQuery();
 
@@ -442,12 +438,9 @@ export class BotMainUpdate {
 
     // ✅ Sahifani oshirish
     ctx.session.filter.page += 1;
-    console.log('Yangi sahifa:', ctx.session.filter.page);
 
     // ✅ Yangi natijalarni ko'rsatish
     await this.botSerchWorkService.showResults(ctx, userLang);
-
-    console.log('NEXT TUGADI...............');
   }
 
   @Action('paginate_prev')
@@ -468,7 +461,6 @@ export class BotMainUpdate {
 
     // ✅ Sahifani kamaytirish
     ctx.session.filter.page -= 1;
-    console.log('Yangi sahifa:', ctx.session.filter.page);
 
     // ✅ Yangi natijalarni ko'rsatish
     await this.botSerchWorkService.showResults(ctx, userLang);
@@ -705,7 +697,6 @@ export class BotMainUpdate {
               );
 
               // Keyingi filterni so'rash
-              console.log('LANGUAGE IN UPDATE: ', userLang);
 
               await this.botSerchWorkService.askNextField(ctx, userLang);
               return;
@@ -1892,11 +1883,10 @@ export class BotMainUpdate {
           throw new Error('Job post not found in the result');
         }
 
-        const jobPostChannel =
-          await this.jobPostsTelegramService.createPostForChannel({
-            ...result,
-            job_posts_id: result.job_posts_id, // Explicitly pass the ID
-          });
+        await this.jobPostsTelegramService.createPostForChannel({
+          ...result,
+          job_posts_id: result.job_posts_id, // Explicitly pass the ID
+        });
 
         try {
           await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
