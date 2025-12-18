@@ -21,11 +21,11 @@ export class BotSearchWorkService {
     try {
       console.log('FORMAT FILTER DATAGA KIRDI: ', result);
       const caption = `
-  ▫️${result.subCategory.translations.name || 'Lavozim'} kerak
+  ▫️${result.subCategory.translations[0].name || 'Lavozim'} kerak
   
   💰 Maosh: ${result.salary || 'Kelishilgan'}
   
-  Kompaniya: ${result.user.name || '...'}
+  Kompaniya: ${result.user.company_name || '...'}
   Hudud: ${result.address || '...'}
   Ish turi: ${result.work_format || '...'}
   Talablar: ${result.skills || '...'}

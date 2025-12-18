@@ -86,34 +86,40 @@ export class UserService {
   async createCandidate(createCandidateDto: CreateUserDto) {
     try {
       const { name, password, phone_number, telegram_id } = createCandidateDto;
-      const isExistCandidate = await this.userRepo.findOne({
+      const user = await this.userRepo.findOne({
         where: { phone_number },
       });
-      if (isExistCandidate) {
+      if (!user) {
+        let hashedPassword: string | undefined;
+        if (password) {
+          hashedPassword = await this.bcrypt.encrypt(password);
+        }
+
+        const newCandidate = this.userRepo.create({
+          name,
+          phone_number,
+          password: hashedPassword,
+          role: Roles.CANDIDATE,
+          telegram_id,
+          see_vacancy: false,
+          add_resume: false,
+        });
+
+        await this.userRepo.save(newCandidate);
+
         return successRes(
-          { id: isExistCandidate.id },
-          200,
-          'This user already registered',
+          { id: newCandidate.id },
+          201,
+          'New candidate created',
         );
       }
-      let hashedPassword: string | undefined;
-      if (password) {
-        hashedPassword = await this.bcrypt.encrypt(password);
+
+      if (user.name !== name) {
+        user.name = name;
+        await this.userRepo.save(user);
       }
 
-      const newCandidate = this.userRepo.create({
-        name,
-        phone_number,
-        password: hashedPassword,
-        role: Roles.CANDIDATE,
-        telegram_id,
-        see_vacancy: false,
-        add_resume: false,
-      });
-
-      await this.userRepo.save(newCandidate);
-
-      return successRes({ id: newCandidate.id }, 201, 'New candidate created');
+      return successRes({ id: user.id }, 200, 'User found');
     } catch (error) {
       return catchError(error);
     }
@@ -122,34 +128,35 @@ export class UserService {
   async createHr(createHrDto: CreateUserDto) {
     try {
       const { name, password, phone_number, telegram_id } = createHrDto;
-      const isExistHr = await this.userRepo.findOne({
+      const user = await this.userRepo.findOne({
         where: { phone_number },
       });
-      if (isExistHr) {
-        return successRes(
-          { id: isExistHr.id },
-          200,
-          'This user already registered',
-        );
+      if (!user) {
+        let hashedPassword: string | undefined;
+        if (password) {
+          hashedPassword = await this.bcrypt.encrypt(password);
+        }
+
+        const newUser = this.userRepo.create({
+          company_name: name,
+          phone_number,
+          password: hashedPassword,
+          role: Roles.HR,
+          telegram_id,
+          see_vacancy: false,
+          add_resume: false,
+        });
+
+        await this.userRepo.save(newUser);
+
+        return successRes({ id: newUser.id }, 201, 'New candidate created');
       }
-      let hashedPassword: string | undefined;
-      if (password) {
-        hashedPassword = await this.bcrypt.encrypt(password);
+      if (user.company_name !== name) {
+        user.company_name = name;
+        await this.userRepo.save(user);
       }
 
-      const newUser = this.userRepo.create({
-        name,
-        phone_number,
-        password: hashedPassword,
-        role: Roles.HR,
-        telegram_id,
-        see_vacancy: false,
-        add_resume: false,
-      });
-
-      await this.userRepo.save(newUser);
-
-      return successRes({ id: newUser.id }, 201, 'New candidate created');
+      return successRes({ id: user.id }, 200, 'User found');
     } catch (error) {
       return catchError(error);
     }

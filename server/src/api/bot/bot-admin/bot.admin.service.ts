@@ -1,18 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import config from 'src/config';
 import { Post } from '../common/interfaces';
-import { InjectRepository } from '@nestjs/typeorm';
-import { JobPostsTelegramEntity } from 'src/core/entity/job-posts-telegram.entity';
-import type { JobPostsTelegramRepository } from 'src/core/repository/job-posts-telegram.repository';
-import { Chat_Type, Post_Type } from 'src/common/enums';
+import { Post_Type } from 'src/common/enums';
 import { JobPostsTelegramService } from 'src/api/job-posts-telegram/job-posts-telegram.service';
-import path from 'path';
 import * as fs from 'fs';
+import { UserLanguageService } from 'src/api/user/user-language.service';
+import { catchError } from 'src/infrastructure/response';
 
 @Injectable()
 export class BotAdminService {
   constructor(
     private readonly jobPostsTelegramService: JobPostsTelegramService,
+    private userLanguageService: UserLanguageService,
   ) {}
 
   private adminStates = new Map<string, any>();
@@ -52,8 +51,6 @@ export class BotAdminService {
     try {
       let sentMessage;
 
-      console.log(formattedPost);
-
       if (post.imagePath) {
         sentMessage = await bot.sendPhoto(
           config.TELEGRAM_GROUP_ID,
@@ -75,10 +72,6 @@ export class BotAdminService {
         );
       }
 
-      // 🔥 Mana shu yerda MESSAGE ID mavjud
-      console.log('Sent message ID:', sentMessage.message_id);
-      console.log('Full Telegram Message:', sentMessage);
-
       return sentMessage.message_id; // agar boshqa joyga kerak bo‘lsa
     } catch (error) {
       console.error(`Guruhga xabar yuborishda xato:`, error);
@@ -86,25 +79,32 @@ export class BotAdminService {
   }
 
   // Postni tasdiqlash
-  async approvePost(groupMessageId: number, bot: any) {
+  async approvePost(groupMessageId: number, ctx) {
+    const userId = ctx.from!.id.toString();
+
+    // User tilini olish
+    const userLang = this.userLanguageService.getUserLanguage(userId);
     const dto = {
       message_id: String(groupMessageId),
     };
-    const groupPost = await this.jobPostsTelegramService.acceptPostOnGroup(dto);
+    const groupPost = await this.jobPostsTelegramService.acceptPostOnGroup(
+      dto,
+      userLang,
+    );
 
     if (!`${groupPost.statusCode}`.startsWith('2')) {
-      return 'Error on approving post';
+      throw new NotFoundException('Error on finding job post');
     }
 
     const imagePath = groupPost.data.image_path;
 
     if (!fs.existsSync(imagePath)) {
-      return 'Image not found: ' + imagePath;
+      throw new NotFoundException('Image not found: ' + imagePath);
     }
 
     const channelPost = this.formatPostForChannel(groupPost);
 
-    const sentMessage = await bot.sendPhoto(
+    const sentMessage = await ctx.telegram.sendPhoto(
       config.TELEGRAM_CHANNEL_ID,
       { source: fs.createReadStream(imagePath) },
       {
@@ -113,7 +113,7 @@ export class BotAdminService {
       },
     );
 
-    await bot.sendMessage(
+    await ctx.telegram.sendMessage(
       groupPost.data.user.telegram_id,
       `🎉 **Tabriklaymiz!**\n\n` +
         `✅ Postingiz tasdiqlandi va kanalga joylandi!\n` +
@@ -253,11 +253,8 @@ ${typeText}
 👤 <b>Username:</b> ${data[13] || '...'}
       `.trim();
     } else if (post.type === Post_Type.VACANCY) {
-      console.log('Vacansiyaga kirdi');
-
       typeText = '🏢 VAKANSIYA';
       const data = post.data;
-      console.log('Vacancy data: ', data);
 
       caption = `
 ${typeText}
@@ -292,10 +289,11 @@ ${typeText}
   // Postni kanal uchun formatlash
   formatPostForChannel(result): { caption: string } {
     const data = result.data;
+
     if (data.type === Post_Type.RESUME) {
       return {
         caption: `
-▫️${data.subCategory.translations.name || 'Kasb'}
+▫️${data.subCategory.translations[0].name || 'Kasb'}
 
 💰 Maosh: ${data.salary || 'Kelishilgan'}
 
@@ -317,20 +315,20 @@ ${data.telegram_username || ''}
         `.trim(),
       };
     } else {
-      const data = result;
+      const data = result.data;
       return {
         caption: `
-▫️${data[1] || 'Lavozim'} kerak
+▫️${data.subCategory.translations[0].name || 'Lavozim'} kerak
 
-💰 Maosh: ${data[5] || 'Kelishilgan'}
+💰 Maosh: ${data.salary || 'Kelishilgan'}
 
-Kompaniya: ${data[2] || '...'}
-Hudud: ${data[3] || '...'}
-Ish turi: ${data[4] || '...'}
-Talablar: ${data[6] || '...'}
+Kompaniya: ${data.user.company_name || '...'}
+Hudud: ${data.address || '...'}
+Ish turi: ${data.work_format || '...'}
+Talablar: ${data.skills || '...'}
 
 Aloqa uchun:
-${data[8] || ''} ${data[7] || ''}
+${data.user.phone_number || ''} ${data.user.telegram_username || ''}
 
 - - - - -
 
@@ -347,7 +345,7 @@ ${data[8] || ''} ${data[7] || ''}
     if (data.type === Post_Type.RESUME) {
       return {
         caption: `
-▫️${data.subCategory.translations.name || 'Kasb'}
+▫️${data.subCategory.translations[0].name || 'Kasb'}
 
 💰 Maosh: ${data.salary || 'Kelishilgan'}
 

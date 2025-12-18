@@ -277,10 +277,23 @@ export class BotMainUpdate {
 
   // ===== START COMMAND =====
   @Start()
-  async start(@Ctx() ctx: Context) {
+  async start(@Ctx() ctx) {
     const chatId = ctx.chat!.id.toString();
 
     const userId = ctx.from!.id.toString();
+
+    ctx.session = {
+      step: 0,
+      filter: {
+        sub_category: null,
+        work_format: null,
+        level: null,
+        location: null,
+        page: 1,
+        language: Language.UZ,
+      },
+      category: null,
+    };
 
     this.clearAllStates(chatId);
 
@@ -867,8 +880,6 @@ export class BotMainUpdate {
               selectedFormat = Work_Format.ONLINE;
             }
 
-            console.log('YARATILGAN USER: ', userCreateResponse.data);
-
             const vacancyData = {
               sub_category: String(state.answers[1]),
               level: selectedLevel,
@@ -886,8 +897,6 @@ export class BotMainUpdate {
 
             const createVacancy =
               await this.jobPostsService.createVacancy(vacancyData);
-
-            console.log('CREATED VACANCY: ', createVacancy);
 
             const post = await this.botAdminService.addPost({
               type: Post_Type.VACANCY,
@@ -1864,7 +1873,6 @@ export class BotMainUpdate {
     const lang = Language.UZ;
 
     try {
-      // Original message ni olish callback query dan
       const message = ctx.callbackQuery?.message;
 
       if (!message || !('message_id' in message)) {
@@ -1876,71 +1884,28 @@ export class BotMainUpdate {
       const messageId = message.message_id;
 
       if (data.startsWith('approve_')) {
-        const post = await this.botAdminService.approvePost(
-          messageId,
-          ctx.telegram,
-        );
+        // Call the service method that returns proper JobPostsTelegramEntity with relations
+        const result = await this.botAdminService.approvePost(messageId, ctx);
+
+        // Ensure result contains the job_post relation
+        if (!result || !result.job_posts_id) {
+          throw new Error('Job post not found in the result');
+        }
 
         const jobPostChannel =
-          await this.jobPostsTelegramService.createPostForChannel(Object(post));
+          await this.jobPostsTelegramService.createPostForChannel({
+            ...result,
+            job_posts_id: result.job_posts_id, // Explicitly pass the ID
+          });
 
         try {
-          // Botdagi post xabarini o'chirish
-          // await ctx.deleteMessage();
-
-          await ctx.editMessageReplyMarkup({ inline_keyboard: [] }); // [citation:1]
+          await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
           await ctx.answerCbQuery(this.t(lang, 'admin.post_approved_success'));
         } catch (error) {
           console.error("Post o'chirishda xatolik:", error);
           await ctx.answerCbQuery(this.t(lang, 'admin.post_approved_success'));
         }
       }
-      // else if (data.startsWith('reject_')) {
-      //   // Data dan postId ni olish
-      //   const match = data.match(/reject_(\d+)/);
-      //   const postId = match ? parseInt(match[1]) : null;
-
-      //   if (!postId) {
-      //     await ctx.answerCbQuery(this.t(lang, 'errors.invalid_post_id'));
-      //     return;
-      //   }
-
-      //   // Admin dan sabab so'rash
-      //   await ctx.reply(this.t(lang, 'admin.reject_reason_prompt', { postId }));
-      //   this.botAdminService.setAdminState(adminId, {
-      //     mode: 'awaiting_reject_reason',
-      //     postId: postId,
-      //   });
-
-      //   await ctx.answerCbQuery(this.t(lang, 'edit_prompt'));
-      // } else if (data.startsWith('edit_')) {
-      //   // Data dan postId ni olish
-      //   const match = data.match(/edit_(\d+)/);
-      //   const postId = match ? parseInt(match[1]) : null;
-
-      //   if (!postId) {
-      //     await ctx.answerCbQuery(this.t(lang, 'errors.invalid_post_id'));
-      //     return;
-      //   }
-
-      //   const post = await this.botAdminService.getPostById(postId);
-      //   if (post) {
-      //     const fields = this.t(lang, `edit_fields.${post.type}`);
-      //     await ctx.reply(
-      //       this.t(lang, 'admin.edit_post_instructions', {
-      //         postId: postId,
-      //         fields: fields,
-      //       }),
-      //     );
-
-      //     this.botAdminService.setAdminState(adminId, {
-      //       mode: 'awaiting_edit_post',
-      //       postId: postId,
-      //     });
-      //   }
-
-      //   await ctx.answerCbQuery(this.t(lang, 'edit_prompt'));
-      // }
     } catch (error) {
       console.error('Error in handlePostAction:', error);
       await ctx.answerCbQuery(this.t(lang, 'errors.general'));
