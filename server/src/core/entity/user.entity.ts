@@ -6,8 +6,11 @@ import { UserTaskEntity } from './user-task.entity';
 
 @Entity('users')
 export class UserEntity extends BaseEntity {
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: true })
   name: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  company_name: string;
 
   @Index()
   @Column({ type: 'varchar' })
