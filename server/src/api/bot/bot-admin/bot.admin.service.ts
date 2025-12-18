@@ -30,6 +30,41 @@ export class BotAdminService {
     this.adminStates.delete(chatId);
   }
 
+  // ...
+
+  private generateContactUrl(tg_username, phone_number): string {
+    // 1. Avval telegram username ni tekshiramiz (post dagi)
+    if (tg_username) {
+      // @ belgisini olib tashlash
+      const username = tg_username.replace(/^@/, '');
+      return `https://t.me/${username}`;
+    }
+
+    // 2. Keyin userning telegram usernameni tekshiramiz
+    if (tg_username) {
+      const username = tg_username.replace(/^@/, '');
+      return `https://t.me/${username}`;
+    }
+
+    // 3. Agar telefon raqam bo'lsa, Telegram contact link yaratamiz
+    if (phone_number) {
+      const phone = phone_number.replace(/\s+/g, '');
+      // Format: https://t.me/share/url?url=phone_number
+      return `https://t.me/share/url?url=${encodeURIComponent(phone)}`;
+
+      // Yoki to'g'ridan-to'g'ri tel: link
+      // return `tel:${phone}`;
+    }
+
+    // 4. Agar bot uchun contact form kerak bo'lsa
+    if (process.env.BOT_USERNAME) {
+      return `https://t.me/${process.env.BOT_USERNAME.replace(/^@/, '')}`;
+    }
+
+    // 5. Default holatda bot username ni ishlatamiz
+    return 'https://t.me/Reztalpost'; // Yoki boshqa default URL
+  }
+
   // ========== POST MANAGEMENT ==========
 
   // Yangi post qo'shish
@@ -104,12 +139,35 @@ export class BotAdminService {
 
     const channelPost = this.formatPostForChannel(groupPost);
 
+    console.log('CHANNEL POST..........: ', channelPost);
+
+    const inlineKeyboard = [
+      [
+        {
+          text: '📞 Aloqaga chiqish',
+          url: this.generateContactUrl(
+            channelPost.contact?.username,
+            channelPost.contact?.phone_number,
+          ),
+        },
+      ],
+      [
+        {
+          text: `👁️ Ko'rildi: ${channelPost.viewCount || 0}`,
+          callback_data: `view_${channelPost.id}_${Date.now()}`,
+        },
+      ],
+    ];
+
     const sentMessage = await ctx.telegram.sendPhoto(
       config.TELEGRAM_CHANNEL_ID,
       { source: fs.createReadStream(imagePath) },
       {
         caption: channelPost.caption,
         parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: inlineKeyboard,
+        },
       },
     );
 
@@ -119,7 +177,9 @@ export class BotAdminService {
         `✅ Postingiz tasdiqlandi va kanalga joylandi!\n` +
         `📊 Endi boshqalar sizning ${groupPost.data.type === Post_Type.RESUME ? 'rezyume' : 'vakansiya'}ngizni ko'rishadi.\n\n` +
         `🔗 Kanal: ${config.BOT_USERNAME}`,
-      { parse_mode: 'Markdown' },
+      {
+        parse_mode: 'Markdown',
+      },
     );
 
     return {
@@ -281,18 +341,15 @@ ${typeText}
       ],
     };
 
-    console.log('Vacancy terurndan oldin');
-
     return { caption, keyboard };
   }
 
   // Postni kanal uchun formatlash
-  formatPostForChannel(result): { caption: string } {
+  formatPostForChannel(result) {
     const data = result.data;
 
     if (data.type === Post_Type.RESUME) {
-      return {
-        caption: `
+      const caption = `
 ▫️${data.subCategory.translations[0].name || 'Kasb'}
 
 💰 Maosh: ${data.salary || 'Kelishilgan'}
@@ -306,13 +363,22 @@ Ko'nikmalar: ${data.skills || '...'}
 
 Aloqa uchun:
 ${data.user.phone_number || ''}
-${data.telegram_username || ''}
 - - - - -
 
 🧑‍💼 Rezyume joylash: @Reztalpost
 
 @Reztal_jobs bilan eng mosini toping!
-        `.trim(),
+        `.trim();
+      const viewCount = data.view_count;
+      console.log('USERNAME.........: ', data.telegram_username);
+      return {
+        caption,
+        contact: {
+          username: data.telegram_username,
+          phone_number: data.user.phone_number,
+        },
+        viewCount,
+        id: data.post_id,
       };
     } else {
       const data = result.data;
@@ -328,7 +394,7 @@ Ish turi: ${data.work_format || '...'}
 Talablar: ${data.skills || '...'}
 
 Aloqa uchun:
-${data.user.phone_number || ''} ${data.user.telegram_username || ''}
+${data.user.phone_number || ''} ${data.telegram_username || ''}
 
 - - - - -
 
