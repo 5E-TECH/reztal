@@ -1,0 +1,267 @@
+{
+  "welcome": "🚀 Welcome to the bot!\nPlease select one of the following:",
+  "choose_language": "🇺🇿🇷🇺🇺🇸 Please select a language:",
+  "language_selected": "✅ Language selected",
+  "rezume": "🧑‍💻 Need a job",
+  "vacancy": "🏢 Need an employee",
+  "announcement": "🧾 My ads",
+  "choose_rezume_option": "Please select one of the following options in the resume section:",
+  "choose_vacancy_option": "Please select one of the following options in the vacancy section:",
+  "search_job": "🔍 Search job",
+  "fill_rezume": "📝 Fill resume",
+  "search_employee": "🔍 Search employee",
+  "fill_vacancy": "📝 Post vacancy",
+  "search_job_message": "🚀 Job search feature is currently under development. Coming soon!",
+  "search_employee_message": "🚀 Employee search feature is currently under development. Coming soon!",
+  "confirmation": "✅ Confirm",
+  "edit": "✏️ Edit",
+  "back": "🔙 Back",
+  "submit": "📤 Submit",
+  "cancel": "❌ Cancel",
+  "main_menu": "🏠 Main menu",
+  "admin_panel": "👑 Admin Panel",
+  "pending_posts": "📋 Awaiting approval",
+  "statistics": "📊 Statistics",
+  "admins": "👥 Admins",
+  "add_admin": "➕ Add admin",
+  "back_to_main": "🔙 Main menu",
+  "change_language": "🌐 Change language",
+  "unknown": "Unknown",
+  "user": "User",
+  "date": "Date",
+  "phone": "Phone",
+  "username": "Username",
+  "not_provided": "Not provided",
+  "joined": "Joined",
+
+  "rezume_questions": [
+    "1. What is your profession?",
+    "2. Upload your resume in PDF format.",
+    "3. How much experience do you have?",
+    "4. What salary do you expect?",
+    "5. Your name?",
+    "6. Your age?",
+    "7. Select your gender:",
+    "8. Select your location:",
+    "9. Select your language skills:",
+    "10. Portfolio (if any)?",
+    "11. Skills related to your field?",
+    "12. Your phone number?",
+    "13. Telegram username?"
+  ],
+
+  "vacancy_questions": [
+    "1. Job title?",
+    "2. Company name?",
+    "3. Job type?",
+    "4. Location?",
+    "5. Level?",
+    "6. Requirements?",
+    "7. Salary?",
+    "8. Telegram username?",
+    "9. Phone number?"
+  ],
+
+  "gender": {
+    "male": "Male",
+    "female": "Female"
+  },
+
+  "level": {
+    "junior": "Junior",
+    "middle": "Middle",
+    "senior": "Senior"
+  },
+
+  "category": {
+    "back": "⬅️ Back",
+    "categories": [
+      {
+        "name": "Programming",
+        "sub_categories": [
+          "Frontend",
+          "Backend",
+          "Fullstack",
+          "Mobile Development",
+          "DevOps",
+          "QA / Testing",
+          "Data Science",
+          "AI / ML"
+        ]
+      },
+      {
+        "name": "Design",
+        "sub_categories": [
+          "Graphic Design",
+          "UI/UX Design",
+          "Motion Design",
+          "3D Design"
+        ]
+      },
+      {
+        "name": "Marketing",
+        "sub_categories": [
+          "SMM",
+          "Digital Marketing",
+          "Targeting",
+          "SEO Specialist",
+          "Content Creation"
+        ]
+      },
+      {
+        "name": "Sales",
+        "sub_categories": [
+          "Salesperson",
+          "Call Center Operator",
+          "Business Development",
+          "Corporate Sales"
+        ]
+      },
+      {
+        "name": "Education",
+        "sub_categories": ["English Teacher", "Math Teacher", "Mentor", "Tutor"]
+      },
+      {
+        "name": "Finance & Accounting",
+        "sub_categories": [
+          "Accountant",
+          "Cashier",
+          "Audit",
+          "Financial Analyst"
+        ]
+      },
+      {
+        "name": "Healthcare",
+        "sub_categories": ["Doctor", "Nurse", "Pharmacist", "Lab Assistant"]
+      },
+      {
+        "name": "Construction",
+        "sub_categories": [
+          "Master Builder",
+          "Engineer",
+          "Architect",
+          "Estimator"
+        ]
+      },
+      {
+        "name": "Transport & Logistics",
+        "sub_categories": [
+          "Driver",
+          "Courier",
+          "Logistic Specialist",
+          "Warehouse Worker"
+        ]
+      },
+      {
+        "name": "Administration",
+        "sub_categories": [
+          "Administrator",
+          "HR Specialist",
+          "Office Manager",
+          "Reception"
+        ]
+      },
+      {
+        "name": "Manufacturing",
+        "sub_categories": ["Operator", "Technician", "Fitter", "Factory Worker"]
+      },
+      {
+        "name": "Service",
+        "sub_categories": ["Waiter", "Barista", "Hairdresser", "Hotel Staff"]
+      }
+    ]
+  },
+
+  "regions": [
+    ["Tashkent city", "Tashkent region"],
+    ["Andijan", "Fergana", "Namangan"],
+    ["Samarkand", "Bukhara", "Khorezm"],
+    ["Kashkadarya", "Surkhandarya"],
+    ["Jizzakh", "Syrdarya", "Navoi"],
+    ["Karakalpakstan"]
+  ],
+
+  "languages": [
+    "Uzbek",
+    "Russian",
+    "English",
+    "Korean",
+    "Other",
+    "🟢 Finish selection"
+  ],
+
+  "work_types": ["Offline", "Online", "Hybrid"],
+
+  "phone_request": "📞 Share phone number",
+
+  "post_status": {
+    "pending": "⏳ Awaiting approval",
+    "approved": "✅ Approved",
+    "rejected": "❌ Rejected"
+  },
+
+  "errors": {
+    "phone_invalid": "❗ Please enter a valid phone number in format +998xxxxxxxxx\n\nExample: +998901234567",
+    "username_invalid": "❗ Please enter username starting with @\n\nExample: @username",
+    "salary_invalid": "❗ Please enter valid salary amount",
+    "required": "❗ Please fill in this field",
+    "pdf_required": "❗ Please send your resume in PDF format",
+    "region_invalid": "❗ Please select region from buttons",
+    "work_type_invalid": "❗ Please select work type from buttons",
+    "language_invalid": "❗ Please select at least one language",
+    "gender_invalid": "❗ Please select your gender"
+  },
+
+  "success": {
+    "post_created": "📝 Your post has been created! It will be published in the channel after admin approval.",
+    "post_approved": "🎉 Your post has been approved and published in the channel!",
+    "post_rejected": "❌ Your post has been rejected",
+    "admin_added": "✅ New admin added",
+    "admin_removed": "✅ Admin removed",
+    "post_edited": "✅ Post edited",
+    "post_deleted": "✅ Post deleted"
+  },
+
+  "confirmation_messages": {
+    "rezume_preview": "📋 **Review your information:**\n\n🧑‍💼 Profession: {{job}}\n📊 Experience: {{experience}}\n💰 Salary: {{salary}}\n👤 Name: {{name}}\n🎂 Age: {{age}}\n⚧ Gender: {{gender}}\n📍 Location: {{region}}\n🌐 Languages: {{languages}}\n📁 Portfolio: {{portfolio}}\n💼 Skills: {{skills}}\n📞 Phone: {{phone}}\n👤 Username: {{username}}\n\n*Is your information correct?*",
+    "vacancy_preview": "📋 **Vacancy information:**\n\n💼 Profession: {{job}}\n🏢 Company: {{company}}\n📍 Location: {{region}}\n🖥️ Work type: {{workType}}\n💰 Salary: {{salary}}\n📋 Requirements: {{requirements}}\n👤 Username: {{username}}\n📞 Phone: {{phone}}\n\n*Is the information correct?*",
+    "rezume_submitted": "📝 Your post has been created! It will be published in the channel after admin approval.\n\n⏳ Status: **Awaiting approval**\n🔢 Post ID: {{postId}}",
+    "vacancy_submitted": "📝 Your vacancy has been created! It will be published in the channel after admin approval.\n\n⏳ Status: **Awaiting approval**\n🔢 Post ID: {{postId}}"
+  },
+
+  "admin": {
+    "no_pending_posts": "✅ No posts awaiting approval.",
+    "pending_posts_list": "⏳ Posts awaiting approval:\n\n",
+    "statistics": "📊 Statistics:\n\n👥 Total users: {{totalUsers}}\n📝 Total posts: {{totalPosts}}\n⏳ Awaiting: {{pendingPosts}}\n✅ Approved: {{approvedPosts}}\n❌ Rejected: {{rejectedPosts}}\n🧑‍💻 Resumes: {{rezumePosts}}\n🏢 Vacancies: {{vacancyPosts}}",
+    "admins_list": "👥 Admin list:\n\n",
+    "add_admin_instructions": "Enter new admin information:\n\nFormat: phone_number username\n\nExample: +998901234567 username",
+    "edit_post_instructions": "✏️ Edit post (ID: {{postId}})\n\nEdit in format:\nfield_number: new value\n\nExample: 1: Frontend Developer\nOr: 5: 5 000 000\n\nField numbers:\n{{fields}}",
+    "reject_reason_prompt": "Enter rejection reason for post #{{postId}}:",
+    "post_approved_success": "✅ Post approved and published in channel!",
+    "post_rejected_success": "✅ Post rejected and user notified!",
+    "post_edited_success": "✅ Field {{field}} of post #{{postId}} updated!\nNew value: {{value}}",
+    "admin_added_success": "✅ @{{username}} added as admin!",
+    "admin_removed_success": "✅ @{{username}} removed from admins!",
+    "admin_exists": "❌ This admin already exists!",
+    "admin_not_found": "❌ Admin not found!",
+    "last_admin": "❌ Cannot remove the last admin!",
+    "post_not_found": "❌ Post not found!"
+  },
+
+  "edit_fields": {
+    "rezume": "1: Profession, 2: Experience, 3: Salary, 4: Name, 5: Age, 6: Gender, 7: Location, 8: Languages, 9: Portfolio, 10: Skills, 11: Phone, 12: Username",
+    "vacancy": "1: Profession, 2: Company, 3: Location, 4: Work type, 5: Salary, 6: Requirements, 7: Username, 8: Phone"
+  },
+
+  "paginate_btns": {
+    "next": "Next ➡️",
+    "previous": "⬅️ Previous"
+  },
+
+  "edit_prompt": "✏️ Which field would you like to edit?",
+  "enter_new_value": "Enter new value:",
+  "select_from_list": "Select one from the list below:\n✅ Selected:",
+  "finish_editing": "✅ Finish editing",
+  "add_another": "➕ Add another",
+  "done": "🟢 Done"
+}

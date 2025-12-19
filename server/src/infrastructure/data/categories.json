@@ -1,0 +1,198 @@
+[
+  {
+    "name": {
+      "uz": "Dasturlash",
+      "ru": "Программирование",
+      "en": "Programming"
+    },
+    "subCategories": [
+      { "uz": "Frontend", "ru": "Фронтенд", "en": "Frontend" },
+      { "uz": "Backend", "ru": "Бэкенд", "en": "Backend" },
+      { "uz": "Fullstack", "ru": "Фуллстек", "en": "Fullstack" },
+      {
+        "uz": "Mobil ilovalar",
+        "ru": "Мобильная разработка",
+        "en": "Mobile Development"
+      },
+      { "uz": "DevOps", "ru": "DevOps", "en": "DevOps" },
+      {
+        "uz": "QA / Testlash",
+        "ru": "QA / Тестирование",
+        "en": "QA / Testing"
+      },
+      { "uz": "Data Science", "ru": "Data Science", "en": "Data Science" },
+      { "uz": "AI / ML", "ru": "AI / ML", "en": "AI / ML" }
+    ]
+  },
+
+  {
+    "name": { "uz": "Dizayn", "ru": "Дизайн", "en": "Design" },
+    "subCategories": [
+      {
+        "uz": "Grafik dizayn",
+        "ru": "Графический дизайн",
+        "en": "Graphic Design"
+      },
+      { "uz": "UI/UX dizayn", "ru": "UI/UX дизайн", "en": "UI/UX Design" },
+      { "uz": "Motion dizayn", "ru": "Моушен дизайн", "en": "Motion Design" },
+      { "uz": "3D dizayn", "ru": "3D дизайн", "en": "3D Design" }
+    ]
+  },
+
+  {
+    "name": { "uz": "Marketing", "ru": "Маркетинг", "en": "Marketing" },
+    "subCategories": [
+      { "uz": "SMM", "ru": "SMM", "en": "SMM" },
+      {
+        "uz": "Digital marketing",
+        "ru": "Диджитал маркетинг",
+        "en": "Digital Marketing"
+      },
+      { "uz": "Targeting", "ru": "Таргетинг", "en": "Targeting" },
+      {
+        "uz": "SEO mutaxassisi",
+        "ru": "SEO специалист",
+        "en": "SEO Specialist"
+      },
+      {
+        "uz": "Kontent yaratish",
+        "ru": "Контент создание",
+        "en": "Content Creation"
+      }
+    ]
+  },
+
+  {
+    "name": { "uz": "Sotuv", "ru": "Продажи", "en": "Sales" },
+    "subCategories": [
+      { "uz": "Sotuvchi", "ru": "Продавец", "en": "Salesperson" },
+      {
+        "uz": "Call-markaz operatori",
+        "ru": "Колл-центр оператор",
+        "en": "Call Center Operator"
+      },
+      {
+        "uz": "Biznes rivojlantirish",
+        "ru": "Бизнес развитие",
+        "en": "Business Development"
+      },
+      {
+        "uz": "Korporativ savdo",
+        "ru": "Корпоративные продажи",
+        "en": "Corporate Sales"
+      }
+    ]
+  },
+
+  {
+    "name": { "uz": "Ta'lim", "ru": "Образование", "en": "Education" },
+    "subCategories": [
+      {
+        "uz": "Ingliz tili o'qituvchisi",
+        "ru": "Преподаватель английского",
+        "en": "English Teacher"
+      },
+      {
+        "uz": "Matematika o'qituvchisi",
+        "ru": "Преподаватель математики",
+        "en": "Math Teacher"
+      },
+      { "uz": "Mentor", "ru": "Ментор", "en": "Mentor" },
+      { "uz": "Repetitor", "ru": "Репетитор", "en": "Tutor" }
+    ]
+  },
+
+  {
+    "name": {
+      "uz": "Moliya va buxgalteriya",
+      "ru": "Финансы и бухгалтерия",
+      "en": "Finance & Accounting"
+    },
+    "subCategories": [
+      { "uz": "Buxgalter", "ru": "Бухгалтер", "en": "Accountant" },
+      { "uz": "Kassir", "ru": "Кассир", "en": "Cashier" },
+      { "uz": "Audit", "ru": "Аудит", "en": "Audit" },
+      {
+        "uz": "Moliyaviy tahlilchi",
+        "ru": "Финансовый аналитик",
+        "en": "Financial Analyst"
+      }
+    ]
+  },
+
+  {
+    "name": { "uz": "Tibbiyot", "ru": "Медицина", "en": "Healthcare" },
+    "subCategories": [
+      { "uz": "Shifokor", "ru": "Врач", "en": "Doctor" },
+      { "uz": "Hamshira", "ru": "Медсестра", "en": "Nurse" },
+      { "uz": "Farmatsevt", "ru": "Фармацевт", "en": "Pharmacist" },
+      { "uz": "Laborant", "ru": "Лаборант", "en": "Lab Assistant" }
+    ]
+  },
+
+  {
+    "name": { "uz": "Qurilish", "ru": "Строительство", "en": "Construction" },
+    "subCategories": [
+      { "uz": "Usta", "ru": "Мастер", "en": "Master Builder" },
+      { "uz": "Muhandis", "ru": "Инженер", "en": "Engineer" },
+      { "uz": "Arxitektor", "ru": "Архитектор", "en": "Architect" },
+      { "uz": "Smeta mutaxassisi", "ru": "Сметчик", "en": "Estimator" }
+    ]
+  },
+
+  {
+    "name": {
+      "uz": "Transport va logistika",
+      "ru": "Транспорт и логистика",
+      "en": "Transport & Logistics"
+    },
+    "subCategories": [
+      { "uz": "Haydovchi", "ru": "Водитель", "en": "Driver" },
+      { "uz": "Kuryer", "ru": "Курьер", "en": "Courier" },
+      { "uz": "Logist", "ru": "Логист", "en": "Logistic Specialist" },
+      { "uz": "Omborchi", "ru": "Кладовщик", "en": "Warehouse Worker" }
+    ]
+  },
+
+  {
+    "name": {
+      "uz": "Administratsiya",
+      "ru": "Администрация",
+      "en": "Administration"
+    },
+    "subCategories": [
+      { "uz": "Administrator", "ru": "Администратор", "en": "Administrator" },
+      { "uz": "HR mutaxassisi", "ru": "HR специалист", "en": "HR Specialist" },
+      { "uz": "Ofis menejeri", "ru": "Офис-менеджер", "en": "Office Manager" },
+      { "uz": "Recepshn", "ru": "Ресепшен", "en": "Reception" }
+    ]
+  },
+
+  {
+    "name": {
+      "uz": "Ishlab chiqarish",
+      "ru": "Производство",
+      "en": "Manufacturing"
+    },
+    "subCategories": [
+      { "uz": "Operator", "ru": "Оператор", "en": "Operator" },
+      { "uz": "Texnik", "ru": "Техник", "en": "Technician" },
+      { "uz": "Slesar", "ru": "Слесарь", "en": "Fitter" },
+      {
+        "uz": "Zavod ishchisi",
+        "ru": "Работник завода",
+        "en": "Factory Worker"
+      }
+    ]
+  },
+
+  {
+    "name": { "uz": "Xizmat ko‘rsatish", "ru": "Сервис", "en": "Service" },
+    "subCategories": [
+      { "uz": "Ofitsiant", "ru": "Официант", "en": "Waiter" },
+      { "uz": "Barista", "ru": "Бариста", "en": "Barista" },
+      { "uz": "Sartarosh", "ru": "Парикмахер", "en": "Hairdresser" },
+      { "uz": "Mehmonxona xodimi", "ru": "Работник отеля", "en": "Hotel Staff" }
+    ]
+  }
+]

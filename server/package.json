@@ -22,13 +22,27 @@
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/jwt": "^11.0.1",
+    "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.2.3",
+    "@nestjs/typeorm": "^11.0.0",
+    "@telegraf/types": "^9.2.1",
+    "bcrypt": "^6.0.0",
     "canvas": "^3.2.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
+    "nest-winston": "^1.10.2",
     "nestjs-telegraf": "^2.9.1",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "telegraf": "^4.16.3"
+    "telegraf": "^4.16.3",
+    "telegraf-session-local": "^2.1.1",
+    "typeorm": "^0.3.27"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
