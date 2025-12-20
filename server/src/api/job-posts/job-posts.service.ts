@@ -14,6 +14,11 @@ import type { UserRepository } from 'src/core/repository/user.repository';
 import { DataSource, In } from 'typeorm';
 import { JobFilterDto } from './dto/job-filter.dto';
 import { CreateVacancyDto } from './dto/create-vacancy.dto';
+import { BotAdminService } from '../bot/bot-admin/bot.admin.service';
+import { InjectBot } from 'nestjs-telegraf';
+import { Telegraf } from 'telegraf';
+import config from 'src/config';
+import { JobPostsTelegramService } from '../job-posts-telegram/job-posts-telegram.service';
 
 @Injectable()
 export class JobPostsService {
@@ -28,6 +33,9 @@ export class JobPostsService {
     private readonly userRepo: UserRepository,
 
     private readonly dataSource: DataSource,
+    private readonly botAdminService: BotAdminService,
+    private readonly jobPostsTelegramService: JobPostsTelegramService,
+    @InjectBot() private readonly bot: Telegraf,
   ) {}
   async createResume(createResumeDto: CreateResumeDto) {
     try {
@@ -230,6 +238,114 @@ export class JobPostsService {
     } catch (error) {
       return catchError(error);
     }
+  }
+
+  async incrementViewCount(id: string): Promise<number> {
+    const jobPost = await this.jobPostRepo.findOne({
+      where: { post_id: id },
+    });
+
+    if (!jobPost) return 0;
+
+    jobPost.view_count = Number(jobPost.view_count) + 1;
+    await this.jobPostRepo.save(jobPost);
+
+    return jobPost.view_count;
+  }
+
+  private buildRedirectUrl(postId: string, target?: 'portfolio') {
+    const redirectHost =
+      config.PROD_HOST || config.HOST_URL || 'https://t.me/Reztalpost';
+    const safeRedirectHost = redirectHost.startsWith('http://')
+      ? redirectHost.replace('http://', 'https://')
+      : redirectHost.startsWith('https://')
+        ? redirectHost
+        : `https://${redirectHost}`;
+    const API_PREFIX = 'api/v1';
+    const base = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}`;
+    return target ? `${base}?target=${target}` : base;
+  }
+
+  private isValidUrl(url?: string | null) {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  async redirectToJobPost(id: string, res, target?: string) {
+    // Always bump views first
+    const newViewCount = await this.incrementViewCount(id);
+
+    // Fetch post and build contact target
+    const post = await this.findByPostId(id);
+    const hasPortfolio = post ? this.isValidUrl(post.portfolio) : false;
+    const contactUrl = post
+      ? target === 'portfolio' && hasPortfolio
+        ? post.portfolio
+        : this.botAdminService.generateContactUrl(
+            post.telegram_username,
+            post.user.phone_number,
+          )
+      : 'https://t.me/Reztalpost';
+
+    // Use 302 redirect plus HTML fallback to ensure Telegram in-app browser opens the profile
+    // Also refresh inline keyboard view counter in channel (best-effort)
+    if (post) {
+      try {
+        const channelMessage =
+          await this.jobPostsTelegramService.findChannelMessageByPostId(
+            post.id,
+          );
+        const redirectUrl = this.buildRedirectUrl(post.post_id);
+        const portfolioRedirectUrl = hasPortfolio
+          ? this.buildRedirectUrl(post.post_id, 'portfolio')
+          : null;
+
+        if (channelMessage) {
+          await this.bot.telegram.editMessageReplyMarkup(
+            channelMessage.chat_id,
+            Number(channelMessage.message_id),
+            undefined,
+            {
+              inline_keyboard: [
+                [
+                  {
+                    text: `👁️ Ko'rildi: ${newViewCount}`,
+                    callback_data: `views_${post.post_id}`,
+                  },
+                ],
+                [
+                  { text: '📞 Aloqaga chiqish', url: redirectUrl },
+                  ...(portfolioRedirectUrl
+                    ? [{ text: '🗂 Portfolio', url: portfolioRedirectUrl }]
+                    : []),
+                ],
+              ],
+            },
+          );
+        }
+      } catch (err) {
+        console.error('Failed to update channel keyboard view count', err);
+      }
+    }
+
+    return res
+      .status(302)
+      .setHeader('Location', contactUrl)
+      .send(
+        `<html><head><meta http-equiv="refresh" content="0;url=${contactUrl}"/></head><body><a href="${contactUrl}">Redirecting...</a></body></html>`,
+      );
+  }
+
+  async findByPostId(id: string) {
+    return await this.jobPostRepo.findOne({
+      where: { post_id: id },
+      relations: ['user'],
+    });
   }
 
   // async findFilteredWithPagination

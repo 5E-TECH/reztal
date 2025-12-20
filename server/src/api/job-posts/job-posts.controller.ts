@@ -6,10 +6,13 @@ import {
   Patch,
   Param,
   Delete,
+  Res,
+  Query,
 } from '@nestjs/common';
 import { JobPostsService } from './job-posts.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
 import { UpdateJobPostDto } from './dto/update-job-post.dto';
+import type { Response } from 'express';
 
 @Controller('job-posts')
 export class JobPostsController {
@@ -28,6 +31,15 @@ export class JobPostsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.jobPostsService.findOne(+id);
+  }
+
+  @Get('redirect/:postId')
+  redirectTelegram(
+    @Param('postId') postId: string,
+    @Query('target') target: string,
+    @Res() res: Response,
+  ) {
+    return this.jobPostsService.redirectToJobPost(postId, res, target);
   }
 
   @Patch(':id')

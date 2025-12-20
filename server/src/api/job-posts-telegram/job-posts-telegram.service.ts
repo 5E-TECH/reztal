@@ -82,11 +82,9 @@ export class JobPostsTelegramService {
 
       console.log('TEST -------------: ', test);
 
+      // Fetch post without hard status filter to avoid false negatives
       const post = await queryRunner.manager.findOne(JobPostsEntity, {
-        where: {
-          id: group.job_post.id,
-          post_status: Post_Status.PENDING,
-        },
+        where: { id: group.job_post.id },
         relations: [
           'user',
           'subCategory',
@@ -102,8 +100,11 @@ export class JobPostsTelegramService {
         throw new NotFoundException('Post not found');
       }
 
-      post.post_status = Post_Status.APPROVED;
-      await queryRunner.manager.save(post);
+      // Always set approved to normalize status (even if already approved)
+      if (post.post_status !== Post_Status.APPROVED) {
+        post.post_status = Post_Status.APPROVED;
+        await queryRunner.manager.save(post);
+      }
 
       // Create response with filtered translations by language
       const filteredPost = {
@@ -181,6 +182,12 @@ export class JobPostsTelegramService {
     } catch (error) {
       return catchError(error);
     }
+  }
+
+  async findChannelMessageByPostId(job_posts_id: string) {
+    return this.jobPostTelegRepo.findOne({
+      where: { job_posts_id, chat_type: Chat_Type.CHANNEL },
+    });
   }
 
   create(createJobPostsTelegramDto: CreateJobPostsTelegramDto) {
