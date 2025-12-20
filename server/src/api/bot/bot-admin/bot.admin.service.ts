@@ -7,6 +7,8 @@ import * as fs from 'fs';
 import { UserLanguageService } from 'src/api/user/user-language.service';
 import { catchError } from 'src/infrastructure/response';
 
+const API_PREFIX = 'api/v1';
+
 @Injectable()
 export class BotAdminService {
   constructor(
@@ -16,6 +18,16 @@ export class BotAdminService {
 
   private adminStates = new Map<string, any>();
   private posts: Post[] = []; // Temporary storage - replace with DB
+
+  private isValidUrl(url?: string | null) {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
 
   // Admin state management
   setAdminState(chatId: string, state: any) {
@@ -32,37 +44,22 @@ export class BotAdminService {
 
   // ...
 
-  private generateContactUrl(tg_username, phone_number): string {
-    // 1. Avval telegram username ni tekshiramiz (post dagi)
-    if (tg_username) {
-      // @ belgisini olib tashlash
-      const username = tg_username.replace(/^@/, '');
+  generateContactUrl(
+    tg_username?: string | null,
+    phone_number?: string | null,
+  ): string {
+    // 1️⃣ Telegram username — ENG ISHONCHLI
+    if (tg_username && tg_username.trim()) {
+      const username = tg_username.replace(/^@/, '').trim();
       return `https://t.me/${username}`;
     }
 
-    // 2. Keyin userning telegram usernameni tekshiramiz
-    if (tg_username) {
-      const username = tg_username.replace(/^@/, '');
-      return `https://t.me/${username}`;
-    }
+    // 2️⃣ Telefon BOR, lekin Telegram link xavfli
+    // ❗ telefonni FAOL ishlatmaymiz
+    // ❗ faqat fallback sifatida qoldiramiz
 
-    // 3. Agar telefon raqam bo'lsa, Telegram contact link yaratamiz
-    if (phone_number) {
-      const phone = phone_number.replace(/\s+/g, '');
-      // Format: https://t.me/share/url?url=phone_number
-      return `https://t.me/share/url?url=${encodeURIComponent(phone)}`;
-
-      // Yoki to'g'ridan-to'g'ri tel: link
-      // return `tel:${phone}`;
-    }
-
-    // 4. Agar bot uchun contact form kerak bo'lsa
-    if (process.env.BOT_USERNAME) {
-      return `https://t.me/${process.env.BOT_USERNAME.replace(/^@/, '')}`;
-    }
-
-    // 5. Default holatda bot username ni ishlatamiz
-    return 'https://t.me/Reztalpost'; // Yoki boshqa default URL
+    // 3️⃣ Bot / kanal fallback
+    return 'https://t.me/Reztalpost';
   }
 
   // ========== POST MANAGEMENT ==========
@@ -141,21 +138,32 @@ export class BotAdminService {
 
     console.log('CHANNEL POST..........: ', channelPost);
 
+    const redirectHost =
+      config.PROD_HOST || config.HOST_URL || 'https://t.me/Reztalpost';
+    const safeRedirectHost = redirectHost.startsWith('http://')
+      ? redirectHost.replace('http://', 'https://')
+      : redirectHost.startsWith('https://')
+        ? redirectHost
+        : `https://${redirectHost}`;
+    const contactRedirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${channelPost.id}`;
+    const hasPortfolio =
+      channelPost.portfolio && this.isValidUrl(channelPost.portfolio);
+    const portfolioRedirectUrl = hasPortfolio
+      ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${channelPost.id}?target=portfolio`
+      : null;
+
     const inlineKeyboard = [
       [
         {
-          text: '📞 Aloqaga chiqish',
-          url: this.generateContactUrl(
-            channelPost.contact?.username,
-            channelPost.contact?.phone_number,
-          ),
+          text: `👁️ Ko'rildi: ${channelPost.viewCount || 0}`,
+          callback_data: `views_${channelPost.id}`,
         },
       ],
       [
-        {
-          text: `👁️ Ko'rildi: ${channelPost.viewCount || 0}`,
-          callback_data: `view_${channelPost.id}_${Date.now()}`,
-        },
+        { text: '📞 Aloqaga chiqish', url: contactRedirectUrl },
+        ...(portfolioRedirectUrl
+          ? [{ text: '🗂 Portfolio', url: portfolioRedirectUrl }]
+          : []),
       ],
     ];
 
@@ -379,6 +387,7 @@ ${data.user.phone_number || ''}
         },
         viewCount,
         id: data.post_id,
+        portfolio: data.portfolio,
       };
     } else {
       const data = result.data;
@@ -402,6 +411,7 @@ ${data.user.phone_number || ''} ${data.telegram_username || ''}
 
 @Reztal_jobs bilan eng mosini toping!
         `.trim(),
+        portfolio: data.portfolio,
       };
     }
   }

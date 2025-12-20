@@ -21,6 +21,8 @@ import { JobPostsService } from '../job-posts/job-posts.service';
 import { JobPostsTelegramService } from '../job-posts-telegram/job-posts-telegram.service';
 import { FILTER_FIELDS } from './common/work-filter-question';
 import { BotSearchWorkService } from './bot-rezume/search-work/bot.search-work.service';
+import config from 'src/config';
+const API_PREFIX = 'api/v1';
 
 interface ServiceResponse {
   confirmation?: boolean;
@@ -344,6 +346,133 @@ export class BotMainUpdate {
       await this.showMainMenu(ctx, selectedLang);
     }
   }
+
+  @Action(/contact_(.+)/)
+  async handleContactClick(ctx) {
+    try {
+      const postId = ctx.match[1];
+      const post = await this.jobPostsService.findByPostId(postId);
+      if (!post) {
+        await ctx.answerCbQuery('Post topilmadi', { show_alert: true });
+        return;
+      }
+
+      const redirectHost =
+        config.PROD_HOST || config.HOST_URL || 'https://t.me/Reztalpost';
+      const safeRedirectHost = redirectHost.startsWith('http://')
+        ? redirectHost.replace('http://', 'https://')
+        : redirectHost.startsWith('https://')
+          ? redirectHost
+          : `https://${redirectHost}`;
+      const redirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}`;
+      const hasPortfolio =
+        post.portfolio &&
+        (() => {
+          try {
+            const u = new URL(post.portfolio);
+            return u.protocol === 'http:' || u.protocol === 'https:';
+          } catch {
+            return false;
+          }
+        })();
+      const portfolioRedirectUrl = hasPortfolio
+        ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}?target=portfolio`
+        : null;
+
+      // 1️⃣ Viewcount +1 (legacy callback posts)
+      const newViewCount = await this.jobPostsService.incrementViewCount(
+        postId,
+      );
+
+      // 3️⃣ Keyboardni URL tugma bilan yangilash
+      await ctx.editMessageReplyMarkup({
+        inline_keyboard: [
+          [
+            {
+              text: `👁 Ko'rildi: ${newViewCount}`,
+              callback_data: `views_${postId}`,
+            },
+          ],
+          [
+            { text: '📞 Aloqaga chiqish', url: redirectUrl },
+            ...(portfolioRedirectUrl
+              ? [{ text: '🗂 Portfolio', url: portfolioRedirectUrl }]
+              : []),
+          ],
+        ],
+      });
+
+      // 4️⃣ Oddiy popupni yopish
+      await ctx.answerCbQuery();
+    } catch (err) {
+      console.error('BOT ACTION ERROR:', err);
+      try {
+        await ctx.answerCbQuery('Xatolik yuz berdi', { show_alert: true });
+      } catch {}
+    }
+  }
+
+  @Action(/views_(.+)/)
+  async handleViewCountClick(ctx) {
+    try {
+      const postId = ctx.match[1];
+      const post = await this.jobPostsService.findByPostId(postId);
+      if (!post) {
+        await ctx.answerCbQuery('Post topilmadi', { show_alert: true });
+        return;
+      }
+
+      const redirectHost =
+        config.PROD_HOST || config.HOST_URL || 'https://t.me/Reztalpost';
+      const safeRedirectHost = redirectHost.startsWith('http://')
+        ? redirectHost.replace('http://', 'https://')
+        : redirectHost.startsWith('https://')
+          ? redirectHost
+          : `https://${redirectHost}`;
+      const redirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}`;
+      const hasPortfolio =
+        post.portfolio &&
+        (() => {
+          try {
+            const u = new URL(post.portfolio);
+            return u.protocol === 'http:' || u.protocol === 'https:';
+          } catch {
+            return false;
+          }
+        })();
+      const portfolioRedirectUrl = hasPortfolio
+        ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}?target=portfolio`
+        : null;
+      const currentViewCount = post.view_count || 0;
+
+      await ctx.editMessageReplyMarkup({
+        inline_keyboard: [
+          [
+            {
+              text: `👁 Ko'rildi: ${currentViewCount}`,
+              callback_data: `views_${postId}`,
+            },
+          ],
+          [
+            { text: '📞 Aloqaga chiqish', url: redirectUrl },
+            ...(portfolioRedirectUrl
+              ? [{ text: '🗂 Portfolio', url: portfolioRedirectUrl }]
+              : []),
+          ],
+        ],
+      });
+
+      await ctx.answerCbQuery();
+    } catch (err) {
+      console.error('BOT VIEW ACTION ERROR:', err);
+      try {
+        await ctx.answerCbQuery('Xatolik yuz berdi', { show_alert: true });
+      } catch {}
+    }
+  }
+
+  @Action('noop')
+  async noop() {}
 
   // ===== ASOSIY MENYU =====
   private async showMainMenu(@Ctx() ctx: Context, lang: Language) {

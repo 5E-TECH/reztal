@@ -4,6 +4,7 @@ import {
   Column,
   Entity,
   Generated,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -14,6 +15,7 @@ import { JobPostsTelegramEntity } from './job-posts-telegram.entity';
 
 @Entity('job-posts')
 export class JobPostsEntity extends BaseEntity {
+  @Index()
   @Column({ type: 'bigint', generated: 'increment' })
   post_id: string;
 
