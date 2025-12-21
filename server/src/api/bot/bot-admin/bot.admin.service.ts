@@ -145,18 +145,19 @@ export class BotAdminService {
       : redirectHost.startsWith('https://')
         ? redirectHost
         : `https://${redirectHost}`;
-    const contactRedirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${channelPost.id}`;
+    const redirectKey = (channelPost as any).post_id || channelPost.id;
+    const contactRedirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${redirectKey}`;
     const hasPortfolio =
       channelPost.portfolio && this.isValidUrl(channelPost.portfolio);
     const portfolioRedirectUrl = hasPortfolio
-      ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${channelPost.id}?target=portfolio`
+      ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${redirectKey}?target=portfolio`
       : null;
 
     const inlineKeyboard = [
       [
         {
           text: `👁️ Ko'rildi: ${channelPost.viewCount || 0}`,
-          callback_data: `views_${channelPost.id}`,
+          callback_data: `views_${redirectKey}`,
         },
       ],
       [
@@ -412,6 +413,8 @@ ${data.user.phone_number || ''} ${data.telegram_username || ''}
 @Reztal_jobs bilan eng mosini toping!
         `.trim(),
         portfolio: data.portfolio,
+        viewCount: data.view_count,
+        id: data.post_id || data.id,
       };
     }
   }

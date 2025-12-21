@@ -22,7 +22,14 @@ import { JobPostsTelegramService } from '../job-posts-telegram/job-posts-telegra
 import { FILTER_FIELDS } from './common/work-filter-question';
 import { BotSearchWorkService } from './bot-rezume/search-work/bot.search-work.service';
 import config from 'src/config';
+import path from 'path';
+import { existsSync, createReadStream } from 'fs';
 const API_PREFIX = 'api/v1';
+
+type BotContext = Context & {
+  session: any;
+  lang?: Language;
+};
 
 interface ServiceResponse {
   confirmation?: boolean;
@@ -180,6 +187,43 @@ export class BotMainUpdate {
     return `@${cleaned}`;
   }
 
+  private getBackToMainKeyboard(lang: Language) {
+    return {
+      keyboard: [[this.t(lang, 'back_to_main')]],
+      resize_keyboard: true,
+      one_time_keyboard: false,
+    };
+  }
+
+  private async sendBackToMainShortcut(ctx: BotContext, lang: Language) {
+    await ctx.reply(this.t(lang, 'back_to_main_prompt'), {
+      reply_markup: this.getBackToMainKeyboard(lang),
+    });
+  }
+
+  private resetSearchState(
+    ctx: BotContext,
+    lang: Language,
+    mode: 'vacancy' | 'resume' = 'vacancy',
+  ) {
+    ctx.session = {
+      ...(ctx.session || {}),
+      step: 0,
+      filter: {
+        sub_category: null,
+        work_format: null,
+        level: null,
+        location: null,
+        page: 1,
+        language: lang,
+      },
+      category: null,
+      searchMode: mode,
+    };
+
+    (ctx as any).lang = lang;
+  }
+
   // ===== VALIDATION FUNCTIONS =====
   private isValidRegion(region: string, lang: Language): boolean {
     const regions = this.i18nService
@@ -277,9 +321,83 @@ export class BotMainUpdate {
     this.botAdminService.deleteAdminState(chatId);
   }
 
+  private getMyPostsKeyboard(page: number, totalPages: number) {
+    const buttons: any[] = [];
+
+    if (page > 1) {
+      buttons.push({
+        text: '⬅️',
+        callback_data: 'mypost_prev',
+      });
+    }
+
+    buttons.push({
+      text: `${page}/${totalPages}`,
+      callback_data: 'noop',
+    });
+
+    if (page < totalPages) {
+      buttons.push({
+        text: '➡️',
+        callback_data: 'mypost_next',
+      });
+    }
+
+    return { inline_keyboard: [buttons] };
+  }
+
+  private resolvePhotoSource(imagePath?: string) {
+    const fallback = 'https://via.placeholder.com/400x200?text=No+Image';
+    if (!imagePath) return { photo: fallback, used: fallback };
+
+    const trimmed = imagePath.trim();
+    if (trimmed.startsWith('http')) {
+      return { photo: trimmed, used: trimmed };
+    }
+
+    const candidates = [
+      path.isAbsolute(trimmed) ? trimmed : null,
+      path.join(process.cwd(), 'uploads', path.basename(trimmed)),
+      path.join(process.cwd(), 'src', 'uploads', path.basename(trimmed)),
+      path.join(process.cwd(), '..', 'uploads', path.basename(trimmed)),
+    ].filter(Boolean) as string[];
+
+    const found = candidates.find((p) => existsSync(p));
+    if (found) {
+      return { photo: { source: createReadStream(found) }, used: found };
+    }
+
+    return { photo: fallback, used: fallback };
+  }
+
+  private formatMyPostCaption(post: any, lang: Language) {
+    const subCatName =
+      post.subCategory?.translations?.find((t) => t.lang === lang)?.name ||
+      post.subCategory?.translations?.[0]?.name ||
+      this.t(lang, 'unknown');
+
+    const base = `#${post.type?.toUpperCase() || 'POST'}\n▫️ ${subCatName}`;
+
+    if (post.type === Post_Type.VACANCY) {
+      return `${base}
+💰 ${post.salary || '...'}
+📍 ${post.address || '...'}
+🧑‍💼 ${post.user?.company_name || this.t(lang, 'unknown')}
+☎️ ${post.user?.phone_number || '...'}
+👤 ${post.telegram_username || '...'}`;
+    }
+
+    return `${base}
+💰 ${post.salary || '...'}
+📍 ${post.address || '...'}
+🧑‍💻 ${post.user?.name || this.t(lang, 'unknown')}
+☎️ ${post.user?.phone_number || '...'}
+👤 ${post.telegram_username || '...'}`;
+  }
+
   // ===== START COMMAND =====
   @Start()
-  async start(@Ctx() ctx) {
+  async start(@Ctx() ctx: BotContext) {
     const chatId = ctx.chat!.id.toString();
 
     const userId = ctx.from!.id.toString();
@@ -295,6 +413,7 @@ export class BotMainUpdate {
         language: Language.UZ,
       },
       category: null,
+      searchMode: 'vacancy',
     };
 
     this.clearAllStates(chatId);
@@ -357,6 +476,8 @@ export class BotMainUpdate {
         return;
       }
 
+      const redirectKey = (post as any).post_id || (post as any).id || postId;
+
       const redirectHost =
         config.PROD_HOST || config.HOST_URL || 'https://t.me/Reztalpost';
       const safeRedirectHost = redirectHost.startsWith('http://')
@@ -364,7 +485,7 @@ export class BotMainUpdate {
         : redirectHost.startsWith('https://')
           ? redirectHost
           : `https://${redirectHost}`;
-      const redirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}`;
+      const redirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${redirectKey}`;
       const hasPortfolio =
         post.portfolio &&
         (() => {
@@ -376,7 +497,7 @@ export class BotMainUpdate {
           }
         })();
       const portfolioRedirectUrl = hasPortfolio
-        ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}?target=portfolio`
+        ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${redirectKey}?target=portfolio`
         : null;
 
       // 1️⃣ Viewcount +1 (legacy callback posts)
@@ -390,7 +511,7 @@ export class BotMainUpdate {
           [
             {
               text: `👁 Ko'rildi: ${newViewCount}`,
-              callback_data: `views_${postId}`,
+              callback_data: `views_${redirectKey}`,
             },
           ],
           [
@@ -422,6 +543,8 @@ export class BotMainUpdate {
         return;
       }
 
+      const redirectKey = (post as any).post_id || (post as any).id || postId;
+
       const redirectHost =
         config.PROD_HOST || config.HOST_URL || 'https://t.me/Reztalpost';
       const safeRedirectHost = redirectHost.startsWith('http://')
@@ -429,7 +552,7 @@ export class BotMainUpdate {
         : redirectHost.startsWith('https://')
           ? redirectHost
           : `https://${redirectHost}`;
-      const redirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}`;
+      const redirectUrl = `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${redirectKey}`;
       const hasPortfolio =
         post.portfolio &&
         (() => {
@@ -441,7 +564,7 @@ export class BotMainUpdate {
           }
         })();
       const portfolioRedirectUrl = hasPortfolio
-        ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${postId}?target=portfolio`
+        ? `${safeRedirectHost}/${API_PREFIX}/job-posts/redirect/${redirectKey}?target=portfolio`
         : null;
       const currentViewCount = post.view_count || 0;
 
@@ -450,7 +573,7 @@ export class BotMainUpdate {
           [
             {
               text: `👁 Ko'rildi: ${currentViewCount}`,
-              callback_data: `views_${postId}`,
+              callback_data: `views_${redirectKey}`,
             },
           ],
           [
@@ -510,7 +633,7 @@ export class BotMainUpdate {
         }
       } else {
         ctx.reply(
-          "Salom men Reztal botman. Ushbu guruhga postlarni tasdiqlash uchun jo'natib turaman",
+          this.t(lang, 'group_info'),
         );
       }
     } catch (error) {
@@ -530,74 +653,120 @@ export class BotMainUpdate {
         });
       } else {
         ctx.reply(
-          "Salom men Reztal botman. Ushbu guruhga postlarni tasdiqlash uchun jo'natib turaman",
+          this.t(lang, 'group_info'),
         );
       }
     }
   }
 
   @Action('paginate_next')
-  async paginateNext(@Ctx() ctx) {
+  async paginateNext(@Ctx() ctx: BotContext) {
     // ✅ Callback query'ni darhol javoblash
     await ctx.answerCbQuery();
 
-    if (!ctx.session.filter) return;
+    const baseFilters =
+      ctx.session.filter || ctx.session.lastFilters || undefined;
+    if (!baseFilters) return;
 
     const userLang = this.userLanguageService.getUserLanguage(
       ctx.from!.id.toString(),
     );
 
-    // ✅ Avval natijalarni olish
-    const results = await this.jobPostsService.workFilter(
-      ctx.session.filter,
-      userLang,
-    );
-
-    const totalPages = results.data.meta.totalPages || 1;
-
-    if (!ctx.session.filter.page) {
-      ctx.session.filter.page = 1;
-    }
-
-    // ✅ Sahifa chegarasini tekshirish
-    if (ctx.session.filter.page >= totalPages) {
-      await ctx.answerCbQuery('Bu oxirgi sahifa');
-      return;
-    }
-
-    // ✅ Sahifani oshirish
-    ctx.session.filter.page += 1;
+    const currentPage = Number(baseFilters.page) || 1;
+    const nextFilters = { ...baseFilters, page: currentPage + 1 };
+    ctx.session.filter = nextFilters;
+    ctx.session.lastFilters = nextFilters;
 
     // ✅ Yangi natijalarni ko'rsatish
-    await this.botSerchWorkService.showResults(ctx, userLang);
+    const searchType =
+      ctx.session.searchMode === 'resume'
+        ? Post_Type.RESUME
+        : Post_Type.VACANCY;
+    await this.botSerchWorkService.showResults(
+      ctx,
+      userLang,
+      searchType,
+      nextFilters,
+    );
   }
 
   @Action('paginate_prev')
-  async paginatePrev(@Ctx() ctx) {
+  async paginatePrev(@Ctx() ctx: BotContext) {
     // ✅ Callback query'ni darhol javoblash
     await ctx.answerCbQuery();
 
-    if (!ctx.session.filter) return;
+    const baseFilters =
+      ctx.session.filter || ctx.session.lastFilters || undefined;
+    if (!baseFilters) return;
 
     const userLang = this.userLanguageService.getUserLanguage(
       ctx.from!.id.toString(),
     );
 
-    if (!ctx.session.filter.page || ctx.session.filter.page <= 1) {
+    const currentPage = Number(baseFilters.page) || 1;
+    if (currentPage <= 1) {
       await ctx.answerCbQuery('Bu birinchi sahifa');
       return;
     }
 
-    // ✅ Sahifani kamaytirish
-    ctx.session.filter.page -= 1;
+    const prevFilters = { ...baseFilters, page: currentPage - 1 };
+    ctx.session.filter = prevFilters;
+    ctx.session.lastFilters = prevFilters;
 
     // ✅ Yangi natijalarni ko'rsatish
-    await this.botSerchWorkService.showResults(ctx, userLang);
+    const searchType =
+      ctx.session.searchMode === 'resume'
+        ? Post_Type.RESUME
+        : Post_Type.VACANCY;
+    await this.botSerchWorkService.showResults(
+      ctx,
+      userLang,
+      searchType,
+      prevFilters,
+    );
+  }
+
+  @Action('mypost_next')
+  async myPostNext(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery();
+    if (!ctx.session.myPosts) return;
+
+    const userLang = this.userLanguageService.getUserLanguage(
+      ctx.from!.id.toString(),
+    );
+
+    const { page, totalPages } = ctx.session.myPosts;
+    if (page >= totalPages) {
+      await ctx.answerCbQuery('Bu oxirgi sahifa');
+      return;
+    }
+
+    ctx.session.myPosts.page += 1;
+    await this.showMyPost(ctx, userLang, true);
+  }
+
+  @Action('mypost_prev')
+  async myPostPrev(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery();
+    if (!ctx.session.myPosts) return;
+
+    const userLang = this.userLanguageService.getUserLanguage(
+      ctx.from!.id.toString(),
+    );
+
+    const { page } = ctx.session.myPosts;
+    if (page <= 1) {
+      await ctx.answerCbQuery('Bu birinchi sahifa');
+      return;
+    }
+
+    ctx.session.myPosts.page -= 1;
+    await this.showMyPost(ctx, userLang, true);
   }
 
   // ===== MESSAGE HANDLER =====
   @On('message')
-  async onMessage(@Ctx() ctx) {
+  async onMessage(@Ctx() ctx: BotContext) {
     const userId = ctx.from!.id.toString();
     const chatId = ctx.chat!.id.toString();
 
@@ -677,6 +846,30 @@ export class BotMainUpdate {
         return;
       }
 
+      if (msg.text === this.t(userLang, 'announcement')) {
+        const myPostsRes = await this.jobPostsService.getMyPosts({
+          telegram_id: chatId,
+        });
+
+        const posts = myPostsRes?.data || [];
+
+        if (!posts.length) {
+          await ctx.reply(this.t(userLang, 'not_provided'), {
+            reply_markup: this.getBackToMainKeyboard(userLang),
+          });
+          return;
+        }
+
+        ctx.session.myPosts = {
+          items: posts,
+          page: 1,
+          totalPages: Math.ceil(posts.length / 1),
+        };
+
+        await this.showMyPost(ctx, userLang);
+        return;
+      }
+
       // Rezume submenu tanlovlari
       if (msg.text === this.t(userLang, 'fill_rezume')) {
         const firstQuestion = await this.botRezumeService.startCollection(
@@ -687,12 +880,9 @@ export class BotMainUpdate {
           reply_markup: { remove_keyboard: true },
         });
         setTimeout(async () => {
-          await ctx.reply(
-            'Iltimos, quyidagi kategoriyalardan birini tanlang:',
-            {
-              reply_markup: this.i18nService.getCategoryKeyboard(userLang),
-            },
-          );
+          await ctx.reply(this.t(userLang, 'prompts.select_category'), {
+            reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+          });
         }, 0);
         return;
       }
@@ -707,27 +897,45 @@ export class BotMainUpdate {
           reply_markup: { remove_keyboard: true },
         });
         setTimeout(async () => {
-          await ctx.reply(
-            'Iltimos, quyidagi kategoriyalardan birini tanlang:',
-            {
-              reply_markup: this.i18nService.getCategoryKeyboard(userLang),
-            },
-          );
+          await ctx.reply(this.t(userLang, 'prompts.select_category'), {
+            reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+          });
         }, 0);
         return;
       }
 
       // 1. AVVAL "search_job" tugmasi bosilganda
-      if (msg.text === this.t(userLang, 'search_job')) {
-        // Faqat step 0 ga qaytarish
-        ctx.session.step = 0;
+      if (msg.text === this.t(userLang, 'search_again')) {
+        const currentMode =
+          ctx.session?.searchMode === 'resume' ? 'resume' : 'vacancy';
+        this.resetSearchState(ctx, userLang, currentMode);
 
-        // Kategoriyalarni chiqarish
-        await ctx.reply('Iltimos, kategoriyani tanlang:', {
+        await ctx.reply(this.t(userLang, 'prompts.select_category'), {
           reply_markup: this.i18nService.getCategoryKeyboard(userLang),
         });
 
-        // Stepni 1 ga o'zgartirish
+        ctx.session.step = 1;
+        return;
+      }
+
+      if (msg.text === this.t(userLang, 'search_job')) {
+        this.resetSearchState(ctx, userLang, 'vacancy');
+
+        await ctx.reply(this.t(userLang, 'prompts.select_category'), {
+          reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+        });
+
+        ctx.session.step = 1;
+        return;
+      }
+
+      if (msg.text === this.t(userLang, 'search_employee')) {
+        this.resetSearchState(ctx, userLang, 'resume');
+
+        await ctx.reply(this.t(userLang, 'prompts.select_category'), {
+          reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+        });
+
         ctx.session.step = 1;
         return;
       }
@@ -738,10 +946,140 @@ export class BotMainUpdate {
         ctx.session.step !== undefined &&
         ctx.session.step > 0
       ) {
-        const step = ctx.session.step;
+        console.log(
+          '[SEARCH FLOW]',
+          JSON.stringify({
+            chatId,
+            step: ctx.session.step,
+            searchMode: ctx.session.searchMode,
+            text: msg.text,
+            filter: ctx.session.filter,
+          }),
+        );
 
+        if (msg.text === this.t(userLang, 'back_to_main')) {
+          this.resetSearchState(ctx, userLang);
+          await this.showMainMenu(ctx, userLang);
+          return;
+        }
+
+        const step = ctx.session.step;
         const text = msg.text.trim();
         const translation = this.i18nService.getTranslation(userLang);
+        const isResumeSearch = ctx.session.searchMode === 'resume';
+
+        // === RESUME (SEARCH EMPLOYEE) FLOW ===
+        if (isResumeSearch) {
+          // Step 1: category
+          if (step === 1) {
+            const categories = translation.category?.categories || [];
+            const category = categories.find((cat: any) => cat.name === text);
+
+            if (category) {
+              ctx.session.category = category.name;
+              ctx.session.step = 2;
+              await ctx.reply(
+                this.t(userLang, 'prompts.select_subcategory', {
+                  category: category.name,
+                }),
+                {
+                  reply_markup: this.i18nService.getSubCategoryKeyboard(
+                    userLang,
+                    category.name,
+                  ),
+                },
+              );
+              return;
+            }
+
+            await ctx.reply(this.t(userLang, 'errors_common.invalid_category'), {
+              reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+            });
+            return;
+          }
+
+          // Step 2: subcategory
+          if (step === 2) {
+            if (!ctx.session.category) {
+              ctx.session.step = 0;
+              await ctx.reply(this.t(userLang, 'errors_common.category_not_found'));
+              return;
+            }
+
+            if (text === translation.category?.back) {
+              ctx.session.category = null;
+              ctx.session.step = 1;
+              await ctx.reply(this.t(userLang, 'prompts.select_category'), {
+                reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+              });
+              return;
+            }
+
+            const categories = translation.category?.categories || [];
+            const category = categories.find(
+              (cat: any) => cat.name === ctx.session.category,
+            );
+
+            if (category && category.sub_categories) {
+              const subcategories = category.sub_categories;
+              const selectedSubcategory = subcategories.find(
+                (sub: any) => sub === text,
+              );
+
+              if (selectedSubcategory) {
+                ctx.session.filter.sub_category = selectedSubcategory;
+                ctx.session.step = 3;
+                await ctx.reply(
+                  `✅ ${this.t(userLang, 'prompts.select_subcategory', {
+                    category: ctx.session.category,
+                  })} ${ctx.session.filter.sub_category}`,
+                );
+                await ctx.reply(this.t(userLang, 'prompts.select_region'), {
+                  reply_markup: this.i18nService.getKeyboard(
+                    userLang,
+                    'regions',
+                  ),
+                });
+                return;
+              }
+            }
+
+            await ctx.reply(
+              this.t(userLang, 'errors_common.invalid_subcategory'),
+              {
+                reply_markup: this.i18nService.getSubCategoryKeyboard(
+                  userLang,
+                  ctx.session.category,
+                ),
+              },
+            );
+            return;
+          }
+
+          // Step 3: region
+          if (step === 3) {
+            const regions = translation.regions;
+            const exists = regions.flat().includes(text);
+            if (exists) {
+              ctx.session.filter.location = text;
+              ctx.session.step = 4;
+              await ctx.reply(`✅ Tanlandi: ${text}`);
+              await this.botSerchWorkService.showResults(
+                ctx,
+                userLang,
+                Post_Type.RESUME,
+              );
+              return;
+            }
+
+            await ctx.reply(this.t(userLang, 'errors_common.invalid_value'), {
+              reply_markup: this.i18nService.getKeyboard(userLang, 'regions'),
+            });
+            return;
+          }
+
+          return;
+        }
 
         // ================ STEP 1: KATEGORIYANI QABUL QILISH ================
         if (step === 1) {
@@ -772,7 +1110,7 @@ export class BotMainUpdate {
           } else {
             // Noto'g'ri kategoriya tanlangan
             await ctx.reply(
-              "Noto'g'ri kategoriya. Iltimos, qaytadan tanlang:",
+              this.t(userLang, 'errors_common.invalid_category'),
               {
                 reply_markup: this.i18nService.getCategoryKeyboard(userLang),
               },
@@ -787,12 +1125,23 @@ export class BotMainUpdate {
           if (!ctx.session.category) {
             // Agar kategoriya yo'q bo'lsa, qayta boshlash
             ctx.session.step = 0;
-            await ctx.reply('Kategoriya topilmadi. Qayta boshlaymiz...');
+            await ctx.reply(this.t(userLang, 'errors_common.category_not_found'));
             return;
           }
 
           const translation = this.i18nService.getTranslation(userLang);
           const categories = translation.category?.categories || [];
+
+          // Orqaga tugmasi bosilganda kategoriyalarni qayta ko'rsatish
+          if (msg.text.trim() === translation.category?.back) {
+            console.log('[SEARCH FLOW] resume/vacancy back on subcategory');
+            ctx.session.category = null;
+            ctx.session.step = 1;
+            await ctx.reply(this.t(userLang, 'prompts.select_category'), {
+              reply_markup: this.i18nService.getCategoryKeyboard(userLang),
+            });
+            return;
+          }
 
           const category = categories.find(
             (cat: any) => cat.name === ctx.session.category,
@@ -814,7 +1163,9 @@ export class BotMainUpdate {
                 'Dizayn',
                 'Marketing',
               ];
-              if (levelRequiredCategories.includes(ctx.session.category)) {
+              if (isResumeSearch) {
+                ctx.session.step = 3; // resume flow always asks work format next
+              } else if (levelRequiredCategories.includes(ctx.session.category)) {
                 ctx.session.step = 3;
               } else {
                 ctx.session.step = 4;
@@ -822,19 +1173,34 @@ export class BotMainUpdate {
               // Keyingi filterga o'tish
 
               await ctx.reply(
-                `✅ Tanlandi: ${ctx.session.category} / ${ctx.session.filter.sub_category}`,
+                `✅ ${this.t(userLang, 'prompts.select_subcategory', {
+                  category: ctx.session.category,
+                })} ${ctx.session.filter.sub_category}`,
               );
 
               // Keyingi filterni so'rash
 
-              await this.botSerchWorkService.askNextField(ctx, userLang);
+              if (isResumeSearch) {
+                console.log(
+                  '[SEARCH FLOW] resume -> ask work format',
+                  ctx.session.filter,
+                );
+                await ctx.reply(this.t(userLang, 'prompts.select_work_type'), {
+                  reply_markup: this.i18nService.getKeyboard(
+                    userLang,
+                    'work_types',
+                  ),
+                });
+              } else {
+                await this.botSerchWorkService.askNextField(ctx, userLang);
+              }
               return;
             }
           }
 
           // Subkategoriya topilmasa, qayta so'rash
           await ctx.reply(
-            "Noto'g'ri mutaxassislik. Iltimos, qaytadan tanlang:",
+            this.t(userLang, 'errors_common.invalid_subcategory'),
             {
               reply_markup: this.i18nService.getSubCategoryKeyboard(
                 userLang,
@@ -846,39 +1212,130 @@ export class BotMainUpdate {
         }
 
         if (step === 3) {
-          const levels = translation.level;
-          const level = text.toLowerCase();
-          const currentLevel = levels[level];
-          if (currentLevel) {
-            ctx.session.filter.level = currentLevel;
-            ctx.session.step = 4;
-            await ctx.reply(`✅ Tanlandi: ${currentLevel}`);
-            await this.botSerchWorkService.askNextField(ctx, userLang);
+          if (isResumeSearch) {
+            // Resume: ish turi
+            const workTypes = translation.work_types;
+            const work_type = workTypes.includes(text);
+            if (work_type) {
+              ctx.session.filter.work_format = text;
+              if (text === 'Online') {
+                ctx.session.filter.location = null;
+              }
+              ctx.session.step = 4;
+              console.log(
+                '[SEARCH FLOW] resume selected work_format',
+                ctx.session.filter,
+              );
+              await ctx.reply(`✅ Tanlandi: ${text}`);
+              await ctx.reply(`Quyidagi fieldni tanlang: ${FILTER_FIELDS[2]}`, {
+                reply_markup: this.i18nService.getKeyboard(userLang, 'level'),
+              });
+            } else {
+              await ctx.reply(this.t(userLang, 'errors_common.invalid_value'), {
+                reply_markup: this.i18nService.getKeyboard(
+                  userLang,
+                  'work_types',
+                ),
+              });
+            }
           } else {
-            await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
-            await this.botSerchWorkService.askNextField(ctx, userLang);
+            // Vacancy: level (faqat levelRequired)
+            const levelKeys = Object.keys(translation.level || {});
+            const matchedKey = levelKeys.find(
+              (k) => translation.level[k] === text,
+            );
+            const currentLevel = matchedKey
+              ? translation.level[matchedKey]
+              : null;
+            if (currentLevel) {
+              ctx.session.filter.level = currentLevel;
+              ctx.session.step = 4;
+              await ctx.reply(`✅ Tanlandi: ${currentLevel}`);
+              await this.botSerchWorkService.askNextField(ctx, userLang);
+            } else {
+              await ctx.reply(this.t(userLang, 'errors_common.invalid_value'), {
+                reply_markup: this.i18nService.getKeyboard(userLang, 'level'),
+              });
+            }
           }
-
-          // Stepni 3 ga o'zgartirish
-
           return;
         }
         if (step === 4) {
-          const workTypes = translation.work_types;
-          const work_type = workTypes.includes(text);
-          if (work_type) {
-            ctx.session.filter.work_format = text;
-            if (text === 'Online') {
-              ctx.session.step = 6;
+          if (isResumeSearch) {
+            // Resume: level
+            const levelKeys = Object.keys(translation.level || {});
+            const matchedKey = levelKeys.find(
+              (k) => translation.level[k] === text,
+            );
+            const currentLevel = matchedKey
+              ? translation.level[matchedKey]
+              : null;
+            if (currentLevel) {
+              ctx.session.filter.level = currentLevel;
+
+              const workFormat = ctx.session.filter.work_format;
+              if (workFormat === 'Online') {
+                ctx.session.step = 6;
+                ctx.session.filter.location = null;
+                console.log(
+                  '[SEARCH FLOW] resume level ok, online -> show results',
+                  ctx.session.filter,
+                );
+                await ctx.reply(`✅ Tanlandi: ${currentLevel}`);
+                await this.botSerchWorkService.showResults(
+                  ctx,
+                  userLang,
+                  Post_Type.RESUME,
+                );
+              } else {
+                ctx.session.step = 5;
+                console.log(
+                  '[SEARCH FLOW] resume level ok, ask region',
+                  ctx.session.filter,
+                );
+                await ctx.reply(`✅ Tanlandi: ${currentLevel}`);
+                await ctx.reply(this.t(userLang, 'prompts.select_region'), {
+                  reply_markup: this.i18nService.getKeyboard(
+                    userLang,
+                    'regions',
+                  ),
+                });
+              }
             } else {
-              ctx.session.step = 5;
+              await ctx.reply(this.t(userLang, 'errors_common.invalid_value'), {
+                reply_markup: this.i18nService.getKeyboard(userLang, 'level'),
+              });
             }
-            await ctx.reply(`✅ Tanlandi: ${text}`);
-            await this.botSerchWorkService.askNextField(ctx, userLang);
           } else {
-            await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
-            await this.botSerchWorkService.askNextField(ctx, userLang);
+            // Vacancy: work format
+            const workTypes = translation.work_types;
+            const work_type = workTypes.includes(text);
+            if (work_type) {
+              ctx.session.filter.work_format = text;
+              if (text === 'Online') {
+                ctx.session.step = 6;
+                await ctx.reply(`✅ Tanlandi: ${text}`);
+                await this.botSerchWorkService.showResults(
+                  ctx,
+                  userLang,
+                  Post_Type.VACANCY,
+                );
+              } else {
+                ctx.session.step = 5;
+                await ctx.reply(`✅ Tanlandi: ${text}`);
+                await this.botSerchWorkService.askNextField(ctx, userLang);
+              }
+            } else {
+              await ctx.reply(this.t(userLang, 'errors_common.invalid_value'), {
+                reply_markup: this.i18nService.getKeyboard(
+                  userLang,
+                  'work_types',
+                ),
+              });
+            }
           }
+
+          return;
         }
         if (step === 5) {
           const regions = translation.regions;
@@ -887,10 +1344,27 @@ export class BotMainUpdate {
             ctx.session.filter.location = text;
             ctx.session.step = 6;
             await ctx.reply(`✅ Tanlandi: ${text}`);
-            await this.botSerchWorkService.askNextField(ctx, userLang);
+            if (isResumeSearch) {
+              await this.botSerchWorkService.showResults(
+                ctx,
+                userLang,
+                Post_Type.RESUME,
+              );
+            } else {
+              await this.botSerchWorkService.askNextField(ctx, userLang);
+            }
           } else {
-            await ctx.reply(`Noto'g'ri qiymat, qayta urining`);
-            await this.botSerchWorkService.askNextField(ctx, userLang);
+            await ctx.reply(this.t(userLang, 'errors_common.invalid_value'));
+            if (isResumeSearch) {
+              await ctx.reply(this.t(userLang, 'prompts.select_region'), {
+                reply_markup: this.i18nService.getKeyboard(
+                  userLang,
+                  'regions',
+                ),
+              });
+            } else {
+              await this.botSerchWorkService.askNextField(ctx, userLang);
+            }
           }
         }
       }
@@ -903,13 +1377,6 @@ export class BotMainUpdate {
             userLang,
           );
         await ctx.reply(firstQuestion, {
-          reply_markup: { remove_keyboard: true },
-        });
-        return;
-      }
-
-      if (msg.text === this.t(userLang, 'search_employee')) {
-        await ctx.reply(this.t(userLang, 'search_employee_message'), {
           reply_markup: { remove_keyboard: true },
         });
         return;
@@ -939,7 +1406,7 @@ export class BotMainUpdate {
 
   // ===== VAKANSIYA FLOW =====
   private async handleVacancyFlow(
-    @Ctx() ctx: Context,
+    @Ctx() ctx: BotContext,
     msg: any,
     state: any,
     chatId: string,
@@ -1355,7 +1822,7 @@ export class BotMainUpdate {
 
   // ===== ISH KERAK FLOW =====
   private async handleRezumeFlow(
-    @Ctx() ctx: Context,
+    @Ctx() ctx: BotContext,
     msg: any,
     state: any,
     chatId: string,
@@ -1454,6 +1921,8 @@ export class BotMainUpdate {
               },
             );
 
+            await this.sendBackToMainShortcut(ctx, lang);
+
             this.botRezumeService.deleteUserState(chatId);
             return;
           } catch (error) {
@@ -1513,7 +1982,7 @@ export class BotMainUpdate {
 
           if (state.editingField === 1) {
             await ctx.reply(
-              'Iltimos, quyidagi kategoriyalardan birini tanlang:',
+              this.t(lang, 'prompts.select_category'),
               {
                 reply_markup: this.i18nService.getCategoryKeyboard(lang),
               },
@@ -1902,6 +2371,51 @@ export class BotMainUpdate {
     }
   }
 
+  private async showMyPost(
+    @Ctx() ctx: BotContext,
+    lang: Language,
+    isCallback = false,
+  ) {
+    const myPosts = ctx.session.myPosts;
+    if (!myPosts || !myPosts.items?.length) {
+      await ctx.reply(this.t(lang, 'not_provided'));
+      return;
+    }
+
+    const { page, items, totalPages } = myPosts;
+    const idx = page - 1;
+    if (idx < 0 || idx >= items.length) {
+      await ctx.reply(this.t(lang, 'not_provided'));
+      return;
+    }
+
+    const post = items[idx];
+    const caption = this.formatMyPostCaption(post, lang);
+    const { photo, used } = this.resolvePhotoSource(post.image_path);
+    const keyboard = this.getMyPostsKeyboard(page, totalPages);
+
+    try {
+      if (isCallback && ctx.callbackQuery?.message) {
+        try {
+          await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
+        } catch {}
+      }
+
+      await ctx.replyWithPhoto(photo, {
+        caption,
+        reply_markup: keyboard,
+        parse_mode: 'HTML',
+      });
+    } catch (err) {
+      console.log('MyPosts photo send failed, using placeholder', err?.message);
+      await ctx.replyWithPhoto('https://via.placeholder.com/400x200?text=No+Image', {
+        caption,
+        reply_markup: keyboard,
+        parse_mode: 'HTML',
+      });
+    }
+  }
+
   // ===== CONFirmation KO'RSATISH =====
   private async showRezumeConfirmation(
     ctx: Context,
@@ -2032,14 +2546,14 @@ export class BotMainUpdate {
   }
 
   @Action('skip')
-  async skipField(@Ctx() ctx, lang: Language) {
+  async skipField(@Ctx() ctx: BotContext, lang: Language) {
     ctx.session.step++;
     await ctx.answerCbQuery("O'tkazildi");
     this.botSerchWorkService.askNextField(ctx, lang);
   }
 
   @Command('filter')
-  async startFilter(@Ctx() ctx, lang: Language) {
+  async startFilter(@Ctx() ctx: BotContext, lang: Language) {
     ctx.session.filter = {};
     ctx.session.step = 0;
 

@@ -8,6 +8,7 @@
   "choose_rezume_option": "Please select one of the following options in the resume section:",
   "choose_vacancy_option": "Please select one of the following options in the vacancy section:",
   "search_job": "🔍 Search job",
+  "search_again": "🔄 Search another job",
   "fill_rezume": "📝 Fill resume",
   "search_employee": "🔍 Search employee",
   "fill_vacancy": "📝 Post vacancy",
@@ -25,6 +26,22 @@
   "admins": "👥 Admins",
   "add_admin": "➕ Add admin",
   "back_to_main": "🔙 Main menu",
+  "back_to_main_prompt": "Use the button below to return to the main menu.",
+  "search_actions_prompt": "Use the buttons below to start a new search or go back to the main menu.",
+  "prompts": {
+    "select_category": "Please choose a category:",
+    "select_subcategory": "Select a specialization in {{category}}:",
+    "select_work_type": "Select work format:",
+    "select_region": "Select a region:",
+    "select_level": "Select field: {{field}}"
+  },
+  "errors_common": {
+    "invalid_category": "Invalid category. Please try again:",
+    "invalid_subcategory": "Invalid specialization. Please try again:",
+    "invalid_value": "Invalid value, please try again",
+    "category_not_found": "Category not found. Restarting..."
+  },
+  "group_info": "Hi, I'm the Reztal bot. I send posts here for approval.",
   "change_language": "🌐 Change language",
   "unknown": "Unknown",
   "user": "User",

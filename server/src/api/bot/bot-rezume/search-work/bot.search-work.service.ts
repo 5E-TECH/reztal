@@ -20,6 +20,13 @@ export class BotSearchWorkService {
   formatFilteredData(result: any, ctx) {
     try {
       console.log('FORMAT FILTER DATAGA KIRDI: ', result);
+      const contactPhone = result.user.phone_number || '';
+      const contactUsername = result.user.telegram_username || '';
+      const showUsername =
+        contactUsername &&
+        contactUsername !== contactPhone &&
+        contactUsername !== `+${contactPhone}`;
+
       const caption = `
   ▫️${result.subCategory.translations[0].name || 'Lavozim'} kerak
   
@@ -31,8 +38,8 @@ export class BotSearchWorkService {
   Talablar: ${result.skills || '...'}
   
   Aloqa uchun:
-  ${result.user.phone_number || ''}
-  ${result.user.telegram_username || ''}
+  ${contactPhone || ''}
+  ${showUsername ? contactUsername : ''}
   
   - - - - -
   
@@ -44,25 +51,25 @@ export class BotSearchWorkService {
       let imagePath = '';
 
       if (result.image_path) {
-        // Agar to'liq lokal yo'l bo'lsa
-        if (result.image_path.startsWith('/')) {
-          // Faqat fayl nomini olish
-          const fileName = path.basename(result.image_path);
-          // To'g'ri URL yaratish
-          imagePath = `${process.env.HOST_URL}/uploads/${fileName}`;
-        }
-        // Agar faqat fayl nomi bo'lsa
-        else if (!result.image_path.startsWith('http')) {
-          imagePath = `${process.env.HOST_URL}/uploads/${result.image_path}`;
-        }
-        // Agar allaqachon URL bo'lsa
-        else {
+        const isHttp = result.image_path.startsWith('http');
+
+        if (isHttp) {
           imagePath = result.image_path;
+        } else if (path.isAbsolute(result.image_path)) {
+          // Already absolute local path
+          imagePath = result.image_path;
+        } else {
+          // Relative file name -> resolve from uploads
+          imagePath = path.join(
+            process.cwd(),
+            'uploads',
+            path.basename(result.image_path),
+          );
         }
       }
 
       console.log('Original image_path:', result.image_path);
-      console.log('Converted imagePath:', imagePath);
+      console.log('Resolved imagePath:', imagePath);
 
       return {
         caption,
@@ -74,28 +81,132 @@ export class BotSearchWorkService {
     }
   }
 
-  async showResults(ctx, lang: Language) {
+  private formatResumeData(result: any) {
+    const contactPhone = result.user.phone_number || '';
+    const contactUsername = result.telegram_username || '';
+    const showUsername =
+      contactUsername &&
+      contactUsername !== contactPhone &&
+      contactUsername !== `+${contactPhone}`;
+
+    const caption = `
+▫️${result.subCategory.translations[0].name || 'Kasb'}
+
+💰 Maosh: ${result.salary || 'Kelishilgan'}
+
+Ism: ${result.user.name || '...'}
+Hudud: ${result.address || '...'}
+Tajriba: ${result.experience || '...'}
+Ko'nikmalar: ${result.skills || '...'}
+
+Aloqa uchun:
+${contactPhone || ''}
+${showUsername ? contactUsername : ''}
+
+- - - - -
+
+🧑‍💼 Rezyume joylash: @Reztalpost
+
+@Reztal_jobs bilan eng mosini toping!
+    `.trim();
+
+    let imagePath = '';
+
+    if (result.image_path) {
+      const isHttp = result.image_path.startsWith('http');
+
+      if (isHttp) {
+        imagePath = result.image_path;
+      } else if (path.isAbsolute(result.image_path)) {
+        imagePath = result.image_path;
+      } else {
+        imagePath = path.join(
+          process.cwd(),
+          'uploads',
+          path.basename(result.image_path),
+        );
+      }
+    }
+
+    console.log('Original image_path:', result.image_path);
+    console.log('Resolved imagePath:', imagePath);
+
+    return {
+      caption,
+      image_path: imagePath,
+    };
+  }
+
+  private getSearchActionsKeyboard(lang: Language) {
+    return {
+      keyboard: [
+        [
+          this.i18nService.t(lang, 'search_again'),
+          this.i18nService.t(lang, 'back_to_main'),
+        ],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: false,
+    };
+  }
+
+  async showResults(
+    ctx,
+    lang: Language,
+    type: Post_Type = Post_Type.VACANCY,
+    filtersOverride?: any,
+  ) {
     try {
-      const filters = ctx.session.filter;
+      const filters = filtersOverride || ctx.session.filter;
       if (!filters) {
         await ctx.reply('❌ Filter topilmadi');
         return;
       }
 
-      const results = await this.jobService.workFilter(filters, lang);
+      // Save last filters for pagination callbacks
+      ctx.session.lastFilters = { ...filters };
+      ctx.session.filter = { ...filters };
+
+      const results = await this.jobService.workFilter(filters, lang, type);
 
       if (!results.data.data.length) {
-        return ctx.reply('❌ Hech narsa topilmadi');
+        return ctx.reply('❌ Hech narsa topilmadi', {
+          reply_markup: this.getSearchActionsKeyboard(lang),
+        });
       }
 
-      const vacancy = this.formatFilteredData(results.data.data[0], ctx);
+      const vacancy =
+        type === Post_Type.RESUME
+          ? this.formatResumeData(results.data.data[0])
+          : this.formatFilteredData(results.data.data[0], ctx);
 
-      // ✅ Rasmni to'g'ridan yuklash (URL emas)
-      let photoSource: any;
-      if (vacancy.image_path && existsSync(vacancy.image_path)) {
-        photoSource = { source: createReadStream(vacancy.image_path) };
-      } else {
-        photoSource = 'https://via.placeholder.com/400x200?text=No+Image';
+      // ✅ Rasmni yuborish: URL bo'lsa to'g'ridan-to'g'ri, aks holda lokal fayl
+      const fallbackImage = 'https://via.placeholder.com/400x200?text=No+Image';
+      let photoSource: any = fallbackImage;
+      let chosenPath: string | null = null;
+      let chosenUrl: string | null = null;
+
+      if (vacancy.image_path) {
+        const isHttp = vacancy.image_path.startsWith('http');
+        const trimmed = vacancy.image_path.trim();
+
+        if (isHttp) {
+          photoSource = trimmed;
+          chosenUrl = trimmed;
+        } else {
+          const candidates = [
+            path.isAbsolute(trimmed) ? trimmed : null,
+            path.join(process.cwd(), 'uploads', path.basename(trimmed)),
+            path.join(process.cwd(), 'src', 'uploads', path.basename(trimmed)),
+            path.join(process.cwd(), '..', 'uploads', path.basename(trimmed)),
+          ].filter(Boolean) as string[];
+
+          chosenPath = candidates.find((p) => existsSync(p)) || null;
+
+          if (chosenPath) {
+            photoSource = { source: createReadStream(chosenPath) };
+          }
+        }
       }
 
       const totalVacancies = results.data.meta.total;
@@ -109,6 +220,23 @@ export class BotSearchWorkService {
         totalPages,
       );
 
+      const sendWithFallback = async () => {
+        try {
+          return await ctx.replyWithPhoto(photoSource, {
+            caption: vacancy.caption,
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+          });
+        } catch (err) {
+          console.log('Photo send failed, falling back to placeholder:', err?.message);
+          await ctx.replyWithPhoto(fallbackImage, {
+            caption: vacancy.caption,
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+          });
+        }
+      };
+
       // ✅ Callback bo'lsa, eski xabarni O'CHIRIB, yangisini yuborish
       if (ctx.callbackQuery?.message) {
         try {
@@ -120,22 +248,28 @@ export class BotSearchWorkService {
         }
 
         // 2. Yangi xabarni yuboramiz
-        await ctx.replyWithPhoto(photoSource, {
-          caption: vacancy.caption,
-          reply_markup: keyboard,
-          parse_mode: 'HTML',
-        });
+        console.log('Sending vacancy photo (callback). Path:', chosenPath || chosenUrl || photoSource);
+
+        await sendWithFallback();
 
         // 3. Callback query'ni javobsiz qoldirmaslik uchun
         await ctx.answerCbQuery();
       }
       // ✅ Yangi so'rov bo'lsa (birinch marta)
       else {
-        await ctx.replyWithPhoto(photoSource, {
-          caption: vacancy.caption,
-          reply_markup: keyboard,
-          parse_mode: 'HTML',
-        });
+        console.log(
+          'Sending vacancy photo (new). Path:',
+          chosenPath || chosenUrl || photoSource,
+        );
+
+        await sendWithFallback();
+
+        await ctx.reply(
+          this.i18nService.t(lang, 'search_actions_prompt'),
+          {
+            reply_markup: this.getSearchActionsKeyboard(lang),
+          },
+        );
       }
     } catch (e) {
       console.log('ShowResults xatosi:', e.message);

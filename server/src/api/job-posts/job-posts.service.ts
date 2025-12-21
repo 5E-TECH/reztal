@@ -89,17 +89,23 @@ export class JobPostsService {
   async getMyPosts(dto: MyPostsDto) {
     try {
       const { telegram_id } = dto;
-      const user = await this.userRepo.findOne({
+      const users = await this.userRepo.find({
         where: { telegram_id },
       });
-      if (!user) {
+
+      if (!users.length) {
         throw new NotFoundException('User with this telegram id not found');
       }
+
+      const userIds = users.map((u) => u.id);
+
       const posts = await this.jobPostRepo.find({
         where: {
-          user_id: user.id,
+          user_id: In(userIds),
           post_status: In([Post_Status.PENDING, Post_Status.APPROVED]),
         },
+        relations: ['subCategory', 'subCategory.translations', 'user'],
+        order: { created_at: 'DESC' },
       });
 
       return successRes(posts, 200, 'All posts by user telegram id');
@@ -108,7 +114,11 @@ export class JobPostsService {
     }
   }
 
-  async workFilter(filter: JobFilterDto, lang: Language) {
+  async workFilter(
+    filter: JobFilterDto,
+    lang: Language,
+    type: Post_Type = Post_Type.VACANCY,
+  ) {
     try {
       let { page, sub_category, location } = filter;
       let { work_format, level } = filter;
@@ -139,7 +149,8 @@ export class JobPostsService {
           'subCategoryTranslations',
           'subCategoryTranslations.lang = :lang',
           { lang },
-        );
+        )
+        .where('job.type = :type', { type });
 
       // Filterlarni qo'llash
       if (subCategoryId) {
@@ -241,9 +252,13 @@ export class JobPostsService {
   }
 
   async incrementViewCount(id: string): Promise<number> {
-    const jobPost = await this.jobPostRepo.findOne({
-      where: { post_id: id },
-    });
+    const jobPost =
+      (await this.jobPostRepo.findOne({
+        where: { post_id: id },
+      })) ||
+      (await this.jobPostRepo.findOne({
+        where: { id },
+      }));
 
     if (!jobPost) return 0;
 
@@ -300,9 +315,10 @@ export class JobPostsService {
           await this.jobPostsTelegramService.findChannelMessageByPostId(
             post.id,
           );
-        const redirectUrl = this.buildRedirectUrl(post.post_id);
+        const redirectKey = post.post_id || post.id;
+        const redirectUrl = this.buildRedirectUrl(redirectKey);
         const portfolioRedirectUrl = hasPortfolio
-          ? this.buildRedirectUrl(post.post_id, 'portfolio')
+          ? this.buildRedirectUrl(redirectKey, 'portfolio')
           : null;
 
         if (channelMessage) {
@@ -315,7 +331,7 @@ export class JobPostsService {
                 [
                   {
                     text: `👁️ Ko'rildi: ${newViewCount}`,
-                    callback_data: `views_${post.post_id}`,
+                    callback_data: `views_${redirectKey}`,
                   },
                 ],
                 [
@@ -342,10 +358,19 @@ export class JobPostsService {
   }
 
   async findByPostId(id: string) {
-    return await this.jobPostRepo.findOne({
+    let post = await this.jobPostRepo.findOne({
       where: { post_id: id },
       relations: ['user'],
     });
+
+    if (!post) {
+      post = await this.jobPostRepo.findOne({
+        where: { id },
+        relations: ['user'],
+      });
+    }
+
+    return post;
   }
 
   // async findFilteredWithPagination

@@ -8,6 +8,7 @@
   "choose_rezume_option": "Iltimos, rezume bo'limidan pastagilardan birini tanlang:",
   "choose_vacancy_option": "Iltimos, vakansiya bo'limidan pastagilardan birini tanlang:",
   "search_job": "🔍 Ish qidirish",
+  "search_again": "🔄 Boshqa ish qidirish",
   "fill_rezume": "📝 Rezyume to'ldirish",
   "search_employee": "🔍 Ishchi qidirish",
   "fill_vacancy": "📝 Vakansiya qoldirish",
@@ -25,6 +26,22 @@
   "admins": "👥 Adminlar",
   "add_admin": "➕ Admin qo'shish",
   "back_to_main": "🔙 Asosiy menyu",
+  "back_to_main_prompt": "Asosiy menyuga qaytish uchun pastdagi tugmadan foydalaning.",
+  "search_actions_prompt": "Quyidagi tugmalar orqali qayta qidirish yoki asosiy menyuga qayting.",
+  "prompts": {
+    "select_category": "Iltimos, kategoriyani tanlang:",
+    "select_subcategory": "{{category}} kategoriyasidan pastagi mutaxassislikni tanlang:",
+    "select_work_type": "Ish turini tanlang:",
+    "select_region": "Hududni tanlang:",
+    "select_level": "Quyidagi fieldni tanlang: {{field}}"
+  },
+  "errors_common": {
+    "invalid_category": "Noto'g'ri kategoriya. Iltimos, qaytadan tanlang:",
+    "invalid_subcategory": "Noto'g'ri mutaxassislik. Iltimos, qaytadan tanlang:",
+    "invalid_value": "Noto'g'ri qiymat, qayta urining",
+    "category_not_found": "Kategoriya topilmadi. Qayta boshlaymiz..."
+  },
+  "group_info": "Salom men Reztal botman. Ushbu guruhga postlarni tasdiqlash uchun jo'natib turaman",
   "change_language": "🌐 Tilni o'zgartirish",
   "unknown": "Noma'lum",
   "user": "Foydalanuvchi",
