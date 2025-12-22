@@ -22,7 +22,12 @@ export class I18nService {
   }
 
   private loadTranslations(): void {
-    const i18nDir = path.join(process.cwd(), 'src', 'i18n');
+    // Try multiple roots to be resilient to different cwd (project root vs server/)
+    const candidates = [
+      path.join(process.cwd(), 'src', 'i18n'),
+      path.join(process.cwd(), 'server', 'src', 'i18n'),
+    ];
+    const i18nDir = candidates.find((p) => fs.existsSync(p)) || candidates[0];
 
     try {
       // Load Uzbek

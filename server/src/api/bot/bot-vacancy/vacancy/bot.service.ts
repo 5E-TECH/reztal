@@ -134,7 +134,7 @@ export class BotVacancyService {
           if (state.selectedCategory) {
             delete state.selectedCategory;
             return {
-              message: 'Kasbingizni tanlang: ',
+              message: this.i18nService.t(lang, 'prompts.select_category'),
               keyboard: this.i18nService.getCategoryKeyboard(lang),
             };
           } else {
@@ -153,7 +153,9 @@ export class BotVacancyService {
 
           this.employerStates.set(chatId, state);
           return {
-            message: `${category.name} kategoriyasidan pastagi mutaxassislikni tanlang:`,
+            message: this.i18nService.t(lang, 'prompts.select_subcategory', {
+              category: category.name,
+            }),
             keyboard: this.i18nService.getSubCategoryKeyboard(
               lang,
               category.name,
@@ -190,13 +192,15 @@ export class BotVacancyService {
 
         if (!state.selectedCategory) {
           return {
-            message: 'Iltimos, kasbingizni quyidagi kategoriyalardan tanlang:',
+            message: this.i18nService.t(lang, 'prompts.select_category'),
             keyboard: this.i18nService.getCategoryKeyboard(lang),
           };
         } else {
           // Agar kategoriya tanlangan, lekin subkategoriya noto'g'ri bo'lsa
           return {
-            message: `Iltimos, "${state.selectedCategory}" kategoriyasidan pastagi mutaxassislikni tanlang:`,
+            message: this.i18nService.t(lang, 'prompts.select_subcategory', {
+              category: state.selectedCategory,
+            }),
             keyboard: this.i18nService.getSubCategoryKeyboard(
               lang,
               state.selectedCategory,

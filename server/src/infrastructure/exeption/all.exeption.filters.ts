@@ -12,6 +12,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    if (!response || typeof (response as any).status !== 'function') {
+      // Non-HTTP context (e.g., bot/telegraf). Log and skip response handling.
+      // eslint-disable-next-line no-console
+      console.error('[AllExceptionsFilter] Non-HTTP context, skipping response', {
+        exception,
+        responseType: typeof response,
+      });
+      return;
+    }
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
