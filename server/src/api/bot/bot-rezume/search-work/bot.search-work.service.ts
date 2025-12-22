@@ -8,6 +8,7 @@ import { BotAdminService } from '../../bot-admin/bot.admin.service';
 import { InputMediaPhoto } from 'telegraf/types';
 import path from 'path';
 import { existsSync, createReadStream } from 'fs';
+import config from 'src/config';
 
 @Injectable()
 export class BotSearchWorkService {
@@ -17,9 +18,15 @@ export class BotSearchWorkService {
     private adminBotService: BotAdminService,
   ) {}
 
-  formatFilteredData(result: any, ctx) {
+  formatFilteredData(result: any, ctx, lang: Language) {
     try {
       console.log('FORMAT FILTER DATAGA KIRDI: ', result);
+      const localeLang: Language = (ctx.lang as Language) || lang || Language.UZ;
+      const translations = result?.subCategory?.translations || [];
+      const translatedName =
+        translations.find((t) => t.lang === localeLang) ||
+        translations[0];
+
       const contactPhone = result.user.phone_number || '';
       const contactUsername = result.user.telegram_username || '';
       const showUsername =
@@ -28,24 +35,25 @@ export class BotSearchWorkService {
         contactUsername !== `+${contactPhone}`;
 
       const caption = `
-  ▫️${result.subCategory.translations[0].name || 'Lavozim'} kerak
+  ▫️${translatedName?.name || 'Lavozim'} ${this.i18nService.t(localeLang, 'vacancy') || 'kerak'}
+  👀 ${result.view_count ?? 0}
   
-  💰 Maosh: ${result.salary || 'Kelishilgan'}
+  💰 ${this.i18nService.t(localeLang, 'salary') || 'Maosh'}: ${result.salary || this.i18nService.t(localeLang, 'not_provided')}
   
-  Kompaniya: ${result.user.company_name || '...'}
-  Hudud: ${result.address || '...'}
-  Ish turi: ${result.work_format || '...'}
-  Talablar: ${result.skills || '...'}
+  ${this.i18nService.t(localeLang, 'company') || 'Kompaniya'}: ${result.user.company_name || '...'}
+  ${this.i18nService.t(localeLang, 'address') || 'Hudud'}: ${result.address || '...'}
+  ${this.i18nService.t(localeLang, 'work_type') || 'Ish turi'}: ${result.work_format || '...'}
+  ${this.i18nService.t(localeLang, 'skills') || 'Talablar'}: ${result.skills || '...'}
   
-  Aloqa uchun:
+  ${this.i18nService.t(localeLang, 'contact') || 'Aloqa uchun'}:
   ${contactPhone || ''}
   ${showUsername ? contactUsername : ''}
   
   - - - - -
   
-  🏢 Vakansiya joylash: @Reztalpost
+  🏢 ${this.i18nService.t(localeLang, 'vacancy_post') || 'Vakansiya joylash'}: @Reztalpost
   
-  @Reztal_jobs bilan eng mosini toping!
+  @Reztal_jobs
           `.trim();
 
       let imagePath = '';
@@ -81,7 +89,11 @@ export class BotSearchWorkService {
     }
   }
 
-  private formatResumeData(result: any) {
+  private formatResumeData(result: any, ctx, lang: Language) {
+    const localeLang: Language = (ctx.lang as Language) || lang || Language.UZ;
+    const translations = result?.subCategory?.translations || [];
+    const translatedName =
+      translations.find((t) => t.lang === localeLang) || translations[0];
     const contactPhone = result.user.phone_number || '';
     const contactUsername = result.telegram_username || '';
     const showUsername =
@@ -90,7 +102,8 @@ export class BotSearchWorkService {
       contactUsername !== `+${contactPhone}`;
 
     const caption = `
-▫️${result.subCategory.translations[0].name || 'Kasb'}
+▫️${translatedName?.name || 'Kasb'}
+👀 ${result.view_count ?? 0}
 
 💰 Maosh: ${result.salary || 'Kelishilgan'}
 
@@ -137,6 +150,79 @@ ${showUsername ? contactUsername : ''}
     };
   }
 
+  private normalizeUrl(url: string): string | null {
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (/^www\./i.test(url)) return `https://${url}`;
+    return url;
+  }
+
+  private getSafeRedirectHost() {
+    const redirectHost =
+      config.PROD_HOST || config.HOST_URL || 'https://t.me/Reztalpost';
+    if (redirectHost.startsWith('http://')) {
+      return redirectHost.replace('http://', 'https://');
+    }
+    if (redirectHost.startsWith('https://')) {
+      return redirectHost;
+    }
+    return `https://${redirectHost}`;
+  }
+
+  private buildRedirectUrl(postId: string, target?: 'portfolio') {
+    const API_PREFIX = 'api/v1';
+    const base = `${this.getSafeRedirectHost()}/${API_PREFIX}/job-posts/redirect/${postId}`;
+    return target ? `${base}?target=${target}` : base;
+  }
+
+  private buildActionKeyboard(
+    result: any,
+    type: Post_Type,
+    lang: Language,
+    paginationKeyboard: any,
+  ) {
+    const inlineRows: any[] = [];
+    const postId = result.post_id || result.id;
+
+    const redirectUrl = this.buildRedirectUrl(postId);
+    const portfolioRedirectUrl = result.portfolio
+      ? this.buildRedirectUrl(postId, 'portfolio')
+      : null;
+
+    // View counter button (display only, no redirect)
+    inlineRows.push([
+      {
+        text: `👁️ ${result.view_count ?? 0}`,
+        callback_data: 'view_count',
+      },
+    ]);
+
+    // Contact + portfolio row
+    const contactLabel = this.i18nService.t(lang, 'contact') || 'Contact';
+    const contactRow: any[] = [
+      {
+        text: `📞 ${contactLabel}`,
+        url: redirectUrl,
+      },
+    ];
+
+    const portfolioUrlNormalized = this.normalizeUrl(result.portfolio);
+    if (portfolioRedirectUrl && portfolioUrlNormalized) {
+      contactRow.push({
+        text: `📁 ${this.i18nService.t(lang, 'portfolio') || 'Portfolio'}`,
+        url: portfolioRedirectUrl,
+      });
+    }
+    inlineRows.push(contactRow);
+
+    // Pagination buttons
+    if (paginationKeyboard?.inline_keyboard?.length) {
+      inlineRows.push(...paginationKeyboard.inline_keyboard);
+    }
+
+    return { inline_keyboard: inlineRows };
+  }
+
   private getSearchActionsKeyboard(lang: Language) {
     return {
       keyboard: [
@@ -157,6 +243,7 @@ ${showUsername ? contactUsername : ''}
     filtersOverride?: any,
   ) {
     try {
+      ctx.lang = lang;
       const filters = filtersOverride || ctx.session.filter;
       if (!filters) {
         await ctx.reply('❌ Filter topilmadi');
@@ -170,15 +257,16 @@ ${showUsername ? contactUsername : ''}
       const results = await this.jobService.workFilter(filters, lang, type);
 
       if (!results.data.data.length) {
-        return ctx.reply('❌ Hech narsa topilmadi', {
+        return ctx.reply(this.i18nService.t(lang, 'search_no_results'), {
           reply_markup: this.getSearchActionsKeyboard(lang),
         });
       }
 
       const vacancy =
         type === Post_Type.RESUME
-          ? this.formatResumeData(results.data.data[0])
-          : this.formatFilteredData(results.data.data[0], ctx);
+          ? this.formatResumeData(results.data.data[0], ctx, lang)
+          : this.formatFilteredData(results.data.data[0], ctx, lang);
+      const originalResult = results.data.data[0];
 
       // ✅ Rasmni yuborish: URL bo'lsa to'g'ridan-to'g'ri, aks holda lokal fayl
       const fallbackImage = 'https://via.placeholder.com/400x200?text=No+Image';
@@ -213,25 +301,31 @@ ${showUsername ? contactUsername : ''}
       const totalPages = Math.ceil(totalVacancies / 1);
       const page = filters.page;
 
-      const keyboard = this.i18nService.getKeyboard(
+      const paginationKeyboard = this.i18nService.getKeyboard(
         lang,
         'paginate',
         page,
         totalPages,
+      );
+      const inlineKeyboard = this.buildActionKeyboard(
+        originalResult,
+        type,
+        lang,
+        paginationKeyboard,
       );
 
       const sendWithFallback = async () => {
         try {
           return await ctx.replyWithPhoto(photoSource, {
             caption: vacancy.caption,
-            reply_markup: keyboard,
+            reply_markup: inlineKeyboard,
             parse_mode: 'HTML',
           });
         } catch (err) {
           console.log('Photo send failed, falling back to placeholder:', err?.message);
-          await ctx.replyWithPhoto(fallbackImage, {
+          return await ctx.replyWithPhoto(fallbackImage, {
             caption: vacancy.caption,
-            reply_markup: keyboard,
+            reply_markup: inlineKeyboard,
             parse_mode: 'HTML',
           });
         }
@@ -250,10 +344,16 @@ ${showUsername ? contactUsername : ''}
         // 2. Yangi xabarni yuboramiz
         console.log('Sending vacancy photo (callback). Path:', chosenPath || chosenUrl || photoSource);
 
-        await sendWithFallback();
+        const sentMessage = await sendWithFallback();
 
         // 3. Callback query'ni javobsiz qoldirmaslik uchun
         await ctx.answerCbQuery();
+
+        // Save last sent message id
+        if (sentMessage?.message_id) {
+          ctx.session = ctx.session || {};
+          ctx.session.lastResultMessageId = sentMessage.message_id;
+        }
       }
       // ✅ Yangi so'rov bo'lsa (birinch marta)
       else {
@@ -262,7 +362,12 @@ ${showUsername ? contactUsername : ''}
           chosenPath || chosenUrl || photoSource,
         );
 
-        await sendWithFallback();
+        const sentMessage = await sendWithFallback();
+
+        if (sentMessage?.message_id) {
+          ctx.session = ctx.session || {};
+          ctx.session.lastResultMessageId = sentMessage.message_id;
+        }
 
         await ctx.reply(
           this.i18nService.t(lang, 'search_actions_prompt'),
@@ -276,7 +381,7 @@ ${showUsername ? contactUsername : ''}
 
       // Xatolik holatida oddiy tekst
       try {
-        await ctx.reply('Xatolik !', {
+        await ctx.reply(this.i18nService.t(lang, 'errors_common.general_error'), {
           parse_mode: 'HTML',
         });
       } catch (err) {
@@ -295,9 +400,13 @@ ${showUsername ? contactUsername : ''}
         return this.showResults(ctx, lang);
       }
 
-      await ctx.reply(`Quyidagi fieldni tanlang: ${field}`, {
+      const fieldLabel = this.i18nService.t(lang, `filter_labels.${field}`) || field;
+      await ctx.reply(
+        this.i18nService.t(lang, 'prompts.select_level', { field: fieldLabel }),
+        {
         reply_markup: this.i18nService.getKeyboard(ctx.lang, 'level'),
-      });
+        },
+      );
     }
     if (step === 4) {
       const fieldNum = step - 2;
@@ -307,9 +416,13 @@ ${showUsername ? contactUsername : ''}
         return this.showResults(ctx, lang);
       }
 
-      await ctx.reply(`Quyidagi fieldni tanlang: ${field}`, {
+      const fieldLabel = this.i18nService.t(lang, `filter_labels.${field}`) || field;
+      await ctx.reply(
+        this.i18nService.t(lang, 'prompts.select_level', { field: fieldLabel }),
+        {
         reply_markup: this.i18nService.getKeyboard(ctx.lang, 'work_types'),
-      });
+        },
+      );
     }
     if (step === 5) {
       const fieldNum = step - 2;
@@ -319,9 +432,13 @@ ${showUsername ? contactUsername : ''}
         return this.showResults(ctx, lang);
       }
 
-      await ctx.reply(`Quyidagi fieldni tanlang: ${field}`, {
+      const fieldLabel = this.i18nService.t(lang, `filter_labels.${field}`) || field;
+      await ctx.reply(
+        this.i18nService.t(lang, 'prompts.select_level', { field: fieldLabel }),
+        {
         reply_markup: this.i18nService.getKeyboard(ctx.lang, 'regions'),
-      });
+        },
+      );
     }
     if (step >= 6) {
       return await this.showResults(ctx, lang);

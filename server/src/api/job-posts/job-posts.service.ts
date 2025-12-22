@@ -37,6 +37,40 @@ export class JobPostsService {
     private readonly jobPostsTelegramService: JobPostsTelegramService,
     @InjectBot() private readonly bot: Telegraf,
   ) {}
+
+  /**
+   * Resolve sub category id by a localized name.
+   * Prefers the provided language, but falls back to any language match.
+   */
+  private async findSubCategoryId(
+    name: string,
+    lang?: Language,
+  ): Promise<string | null> {
+    if (!name) return null;
+
+    const normalizedName = name.trim().toLowerCase();
+
+    const baseQuery = this.subCatTraRepo
+      .createQueryBuilder('translation')
+      .leftJoinAndSelect('translation.subCategory', 'subCategory')
+      .where('LOWER(translation.name) = :name', { name: normalizedName });
+
+    if (lang) {
+      baseQuery.andWhere('translation.lang = :lang', { lang });
+    }
+
+    let translation = await baseQuery.getOne();
+
+    if (!translation && lang) {
+      translation = await this.subCatTraRepo
+        .createQueryBuilder('translation')
+        .leftJoinAndSelect('translation.subCategory', 'subCategory')
+        .where('LOWER(translation.name) = :name', { name: normalizedName })
+        .getOne();
+    }
+
+    return translation?.subCategory?.id || null;
+  }
   async createResume(createResumeDto: CreateResumeDto) {
     try {
       const {
@@ -53,11 +87,7 @@ export class JobPostsService {
         image_path,
       } = createResumeDto;
 
-      const subCategoryId = await this.subCatTraRepo.findOne({
-        where: { name: sub_category },
-        relations: ['subCategory'],
-        select: ['id', 'name', 'subCategory'],
-      });
+      const subCategoryId = await this.findSubCategoryId(sub_category);
 
       if (!subCategoryId) {
         throw new NotFoundException('Sub category not found');
@@ -71,7 +101,7 @@ export class JobPostsService {
         portfolio,
         salary,
         skills,
-        sub_category_id: subCategoryId.subCategory.id,
+        sub_category_id: subCategoryId,
         telegram_username,
         user_id,
         post_status: Post_Status.PENDING,
@@ -120,7 +150,8 @@ export class JobPostsService {
     type: Post_Type = Post_Type.VACANCY,
   ) {
     try {
-      let { page, sub_category, location } = filter;
+      let { page, sub_category } = filter;
+      const location = (filter as any).location;
       let { work_format, level } = filter;
 
       // ✅ Pagination tekshiruvi
@@ -134,11 +165,7 @@ export class JobPostsService {
       console.log('LANGUAGE: ', lang);
       console.log('CURRENT PAGE: ', page);
 
-      const subCategoryId = await this.subCatTraRepo.findOne({
-        where: { name: sub_category },
-        relations: ['subCategory'],
-        select: ['id', 'name', 'subCategory'],
-      });
+      const subCategoryId = await this.findSubCategoryId(sub_category, lang);
 
       const queryBuilder = this.jobPostRepo
         .createQueryBuilder('job')
@@ -147,15 +174,13 @@ export class JobPostsService {
         .leftJoinAndSelect(
           'subCategory.translations',
           'subCategoryTranslations',
-          'subCategoryTranslations.lang = :lang',
-          { lang },
         )
         .where('job.type = :type', { type });
 
       // Filterlarni qo'llash
       if (subCategoryId) {
         queryBuilder.andWhere('job.sub_category_id = :sub_category_id', {
-          sub_category_id: subCategoryId.subCategory.id,
+          sub_category_id: subCategoryId,
         });
       }
 
@@ -172,7 +197,16 @@ export class JobPostsService {
       }
 
       if (location) {
-        queryBuilder.andWhere('job.address = :location', { location });
+        if (Array.isArray(location)) {
+          const locations = location.filter(Boolean);
+          if (locations.length) {
+            queryBuilder.andWhere('job.address IN (:...locations)', {
+              locations,
+            });
+          }
+        } else {
+          queryBuilder.andWhere('job.address = :location', { location });
+        }
       }
 
       // ✅ Tartiblash (masalan, yangilari birinchi)
@@ -219,18 +253,14 @@ export class JobPostsService {
         address,
       } = createVacancyDto;
 
-      const subCategoryId = await this.subCatTraRepo.findOne({
-        where: { name: sub_category },
-        relations: ['subCategory'],
-        select: ['id', 'name', 'subCategory'],
-      });
+      const subCategoryId = await this.findSubCategoryId(sub_category);
 
-      if (!subCategoryId || !subCategoryId.subCategory.id) {
+      if (!subCategoryId) {
         throw new NotFoundException('Sub category not found');
       }
 
       const newVacancy = this.jobPostRepo.create({
-        sub_category_id: subCategoryId.subCategory.id,
+        sub_category_id: subCategoryId,
         level,
         work_format,
         skills,
@@ -291,21 +321,53 @@ export class JobPostsService {
     }
   }
 
-  async redirectToJobPost(id: string, res, target?: string) {
+  async redirectToJobPost(id: string, res: any, target?: string) {
+    console.log('[REDIRECT] start', {
+      id,
+      target,
+      hasRes: !!res,
+      hasStatus: !!res?.status,
+      hasSetHeader: !!res?.setHeader,
+      resType: typeof res,
+    });
+
+    // If res is not a real HTTP response (e.g., called from bot context), just return updated view count and redirect URL
+    const isHttpResponse =
+      res && typeof res.status === 'function' && typeof res.setHeader === 'function';
+    if (!isHttpResponse) {
+      const newViewCount = await this.incrementViewCount(id);
+      const post = await this.findByPostId(id);
+      const redirectKey = post?.post_id || post?.id || id;
+      const redirectUrl = this.buildRedirectUrl(redirectKey, target === 'portfolio' ? 'portfolio' : undefined);
+      return successRes(
+        {
+          redirectUrl,
+          view_count: newViewCount,
+        },
+        200,
+        'Redirect info',
+      );
+    }
+
     // Always bump views first
     const newViewCount = await this.incrementViewCount(id);
 
     // Fetch post and build contact target
-    const post = await this.findByPostId(id);
-    const hasPortfolio = post ? this.isValidUrl(post.portfolio) : false;
-    const contactUrl = post
-      ? target === 'portfolio' && hasPortfolio
+    const post: JobPostsEntity | null = await this.findByPostId(id);
+    if (!post) {
+      return res
+        .status(404)
+        .send('Not found');
+    }
+
+    const hasPortfolio = this.isValidUrl(post.portfolio);
+    const contactUrl =
+      target === 'portfolio' && hasPortfolio
         ? post.portfolio
         : this.botAdminService.generateContactUrl(
             post.telegram_username,
-            post.user.phone_number,
-          )
-      : 'https://t.me/Reztalpost';
+            post.user?.phone_number,
+          );
 
     // Use 302 redirect plus HTML fallback to ensure Telegram in-app browser opens the profile
     // Also refresh inline keyboard view counter in channel (best-effort)
@@ -357,17 +419,61 @@ export class JobPostsService {
       );
   }
 
-  async findByPostId(id: string) {
-    let post = await this.jobPostRepo.findOne({
-      where: { post_id: id },
-      relations: ['user'],
-    });
+  async findByPostId(id: string): Promise<JobPostsEntity | null> {
+    const isNumericId = /^\d+$/.test(String(id));
+    let post: JobPostsEntity | null = null;
+
+    if (isNumericId) {
+      post = await this.jobPostRepo.findOne({
+        where: { post_id: id },
+        relations: ['user'],
+      });
+    }
 
     if (!post) {
       post = await this.jobPostRepo.findOne({
         where: { id },
         relations: ['user'],
       });
+    }
+
+    return post;
+  }
+
+  /**
+   * Soft delete a post: mark status as DELETED and remove channel message if exists.
+   */
+  async softDeletePost(postId: string) {
+    const post = await this.findByPostId(postId);
+
+    if (!post) {
+      throw new NotFoundException('Job post not found');
+    }
+
+    if (post.post_status === Post_Status.DELETED) {
+      return post;
+    }
+
+    post.post_status = Post_Status.DELETED;
+    await this.jobPostRepo.save(post);
+
+    try {
+      const channelMessage =
+        await this.jobPostsTelegramService.findChannelMessageByPostId(
+          post.id,
+        );
+      if (channelMessage?.chat_id && channelMessage?.message_id) {
+        await this.bot.telegram.deleteMessage(
+          channelMessage.chat_id,
+          Number(channelMessage.message_id),
+        );
+      }
+    } catch (err: any) {
+      // Ignore non-fatal Telegram delete errors (e.g., older messages)
+      console.log(
+        'Channel message delete skipped:',
+        err?.description || err?.message || err,
+      );
     }
 
     return post;

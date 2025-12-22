@@ -54,11 +54,7 @@ export class BotAdminService {
       return `https://t.me/${username}`;
     }
 
-    // 2️⃣ Telefon BOR, lekin Telegram link xavfli
-    // ❗ telefonni FAOL ishlatmaymiz
-    // ❗ faqat fallback sifatida qoldiramiz
-
-    // 3️⃣ Bot / kanal fallback
+    // 2️⃣ Bot / kanal fallback (tel link emas)
     return 'https://t.me/Reztalpost';
   }
 

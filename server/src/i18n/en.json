@@ -28,6 +28,7 @@
   "back_to_main": "🔙 Main menu",
   "back_to_main_prompt": "Use the button below to return to the main menu.",
   "search_actions_prompt": "Use the buttons below to start a new search or go back to the main menu.",
+  "search_no_results": "❌ Nothing found",
   "prompts": {
     "select_category": "Please choose a category:",
     "select_subcategory": "Select a specialization in {{category}}:",
@@ -39,7 +40,14 @@
     "invalid_category": "Invalid category. Please try again:",
     "invalid_subcategory": "Invalid specialization. Please try again:",
     "invalid_value": "Invalid value, please try again",
-    "category_not_found": "Category not found. Restarting..."
+    "category_not_found": "Category not found. Restarting...",
+    "general_error": "❌ An error occurred!"
+  },
+  "filter_labels": {
+    "category": "Category",
+    "level": "Level",
+    "work_format": "Work format",
+    "location": "Location"
   },
   "group_info": "Hi, I'm the Reztal bot. I send posts here for approval.",
   "change_language": "🌐 Change language",
@@ -280,5 +288,14 @@
   "select_from_list": "Select one from the list below:\n✅ Selected:",
   "finish_editing": "✅ Finish editing",
   "add_another": "➕ Add another",
-  "done": "🟢 Done"
+  "done": "🟢 Done",
+  "selected_label": "✅ Selected",
+  "company": "Company",
+  "address": "Address",
+  "work_type": "Work format",
+  "skills": "Requirements",
+  "contact": "Contact",
+  "vacancy_post": "Vacancy post",
+  "resume_post": "Resume post",
+  "salary": "Salary"
 }
