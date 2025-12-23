@@ -238,6 +238,7 @@
     "region_invalid": "❗ Iltimos, hududni tugmalardan tanlang",
     "work_type_invalid": "❗ Iltimos, ish turini tugmalardan tanlang",
     "language_invalid": "❗ Iltimos, kamida bitta tilni tanlang",
+    "language_duplicate": "❗ Bu til allaqachon tanlangan, boshqasini tanlang",
     "gender_invalid": "❗ Iltimos, jinsingizni tanlang"
   },
 

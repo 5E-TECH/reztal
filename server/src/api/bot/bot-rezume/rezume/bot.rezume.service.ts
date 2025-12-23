@@ -133,17 +133,11 @@ export class BotRezumeService {
     if (!state) return null;
 
     const step = state.step;
-    let lang: Language = Language.UZ;
-    if (state.lang === 'en') {
-      lang = Language.EN;
-    }
-    if (state.lang === 'ru') {
-      lang = Language.RU;
-    }
+    const lang: Language = state.lang || Language.UZ;
 
     const questions = this.getQuestions(lang);
 
-    // STEP 1 - Profession (Kasb tanlash)
+      // STEP 1 - Profession (Kasb tanlash)
     if (step === 1) {
       if ('text' in msg && msg.text) {
         const text = msg.text.trim();
@@ -363,7 +357,7 @@ export class BotRezumeService {
           if (state.answers[9].includes(text)) {
             state.awaitingLanguageText = false;
             return {
-              message: 'Siz bu tilni tanlagansiz, boshqa til tanlang', // Yangi xabar qo'shish kerak
+              message: 'errors.language_duplicate',
               keyboard: this.getKeyboard(lang, 'languages'),
             };
           }
@@ -398,7 +392,7 @@ export class BotRezumeService {
           // Til allaqachon tanlanganligini tekshirish
           if (state.answers[9].includes(text)) {
             return {
-              message: 'Siz bu tilni tanlagansiz, boshqa til tanlang', // "Siz bu tilni tanlagansiz, boshqa til tanlang"
+              message: 'errors.language_duplicate',
               keyboard: this.getKeyboard(lang, 'languages'),
             };
           } else {

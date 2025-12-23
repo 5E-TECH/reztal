@@ -18,6 +18,7 @@ export interface Statistics {
 
 export interface Post {
   id: number;
+  job_posts_id?: string;
   type: Post_Type;
   userId: string;
   userInfo: any;

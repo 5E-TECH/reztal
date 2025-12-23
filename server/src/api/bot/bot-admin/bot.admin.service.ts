@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import config from 'src/config';
 import { Post } from '../common/interfaces';
-import { Post_Type } from 'src/common/enums';
+import { Language, Post_Type, Post_Status } from 'src/common/enums';
 import { JobPostsTelegramService } from 'src/api/job-posts-telegram/job-posts-telegram.service';
+import { JobPostsService } from 'src/api/job-posts/job-posts.service';
 import * as fs from 'fs';
 import { UserLanguageService } from 'src/api/user/user-language.service';
 import { catchError } from 'src/infrastructure/response';
@@ -14,9 +15,9 @@ export class BotAdminService {
   constructor(
     private readonly jobPostsTelegramService: JobPostsTelegramService,
     private userLanguageService: UserLanguageService,
+    private readonly jobPostsService: JobPostsService,
   ) {}
 
-  private adminStates = new Map<string, any>();
   private posts: Post[] = []; // Temporary storage - replace with DB
 
   private isValidUrl(url?: string | null) {
@@ -30,18 +31,6 @@ export class BotAdminService {
   }
 
   // Admin state management
-  setAdminState(chatId: string, state: any) {
-    this.adminStates.set(chatId, state);
-  }
-
-  getAdminState(chatId: string) {
-    return this.adminStates.get(chatId);
-  }
-
-  deleteAdminState(chatId: string) {
-    this.adminStates.delete(chatId);
-  }
-
   // ...
 
   generateContactUrl(
@@ -65,6 +54,7 @@ export class BotAdminService {
     const newPost: Post = {
       ...post,
       id: this.posts.length + 1,
+      job_posts_id: post.job_posts_id,
       createdAt: new Date(),
     };
     this.posts.push(newPost);
@@ -74,15 +64,29 @@ export class BotAdminService {
 
   // Adminlarga yangi post haqida xabar yuborish
   async notifyAdminAboutNewPost(post: Post, bot: any) {
-    const formattedPost = this.formatPostForAdmin(post);
+    // DB dagi yangilangan ma'lumotlarga tayanamiz
+    const dbPost = post.job_posts_id
+      ? await this.jobPostsService.findByPostId(post.job_posts_id, true)
+      : null;
+    const formattedPost = dbPost
+      ? this.formatEntityForAdmin(dbPost)
+      : this.formatPostForAdmin(post);
 
     try {
       let sentMessage;
 
-      if (post.imagePath) {
+      // Rasm yo'q bo'lsa placeholder ishlatamiz
+      const photoPath =
+        (dbPost?.image_path && fs.existsSync(dbPost.image_path)
+          ? dbPost.image_path
+          : post.imagePath && fs.existsSync(post.imagePath)
+            ? post.imagePath
+            : null) || null;
+
+      if (photoPath) {
         sentMessage = await bot.sendPhoto(
           config.TELEGRAM_GROUP_ID,
-          { source: post.imagePath },
+          { source: photoPath },
           {
             caption: formattedPost.caption,
             parse_mode: 'HTML',
@@ -125,10 +129,7 @@ export class BotAdminService {
     }
 
     const imagePath = groupPost.data.image_path;
-
-    if (!fs.existsSync(imagePath)) {
-      throw new NotFoundException('Image not found: ' + imagePath);
-    }
+    const hasImage = imagePath && fs.existsSync(imagePath);
 
     const channelPost = this.formatPostForChannel(groupPost);
 
@@ -164,17 +165,32 @@ export class BotAdminService {
       ],
     ];
 
-    const sentMessage = await ctx.telegram.sendPhoto(
-      config.TELEGRAM_CHANNEL_ID,
-      { source: fs.createReadStream(imagePath) },
-      {
-        caption: channelPost.caption,
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: inlineKeyboard,
+    let sentMessage;
+
+    if (hasImage) {
+      sentMessage = await ctx.telegram.sendPhoto(
+        config.TELEGRAM_CHANNEL_ID,
+        { source: fs.createReadStream(imagePath) },
+        {
+          caption: channelPost.caption,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: inlineKeyboard,
+          },
         },
-      },
-    );
+      );
+    } else {
+      sentMessage = await ctx.telegram.sendMessage(
+        config.TELEGRAM_CHANNEL_ID,
+        channelPost.caption,
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: inlineKeyboard,
+          },
+        },
+      );
+    }
 
     await ctx.telegram.sendMessage(
       groupPost.data.user.telegram_id,
@@ -191,6 +207,77 @@ export class BotAdminService {
       message_id: String(sentMessage.message_id),
       job_posts_id: String(groupPost.data.id),
     };
+  }
+
+  // Postni rad etish (statusni REJECTED qilib, userga sababni yuborish)
+  async rejectPostWithReason(
+    postId: string,
+    reason: string,
+    ctx: any,
+    groupMessageId: number | string,
+  ) {
+    // Find post by postId (supports post_id or uuid)
+    const post =
+      (await this.jobPostsService.findByPostId(postId, true)) ||
+      (await this.jobPostsService.findByPostId(String(postId), true));
+    if (!post) {
+      throw new NotFoundException('Job post not found');
+    }
+
+    // Update status
+    await this.jobPostsService.updatePostStatus(post.id || post.post_id, Post_Status.REJECTED);
+
+    // Try to remove inline keyboard from group message
+    try {
+      if (groupMessageId && config.TELEGRAM_GROUP_ID) {
+        await ctx.telegram.editMessageReplyMarkup(
+          config.TELEGRAM_GROUP_ID,
+          Number(groupMessageId),
+          undefined,
+          { inline_keyboard: [] },
+        );
+      }
+    } catch (err) {
+      console.log('Failed to clear group keyboard on reject', err?.message);
+    }
+
+    // Build localized reject message
+    const buildRejectMessage = (lang: Language) => {
+      if (lang === Language.RU) {
+        return (
+          `❌ Ваш пост отклонен.\n` +
+          `ℹ️ Причина: ${reason}\n\n` +
+          `📝 Пожалуйста, исправьте данные и отправьте заново.`
+        );
+      }
+      if (lang === Language.EN) {
+        return (
+          `❌ Your post has been rejected.\n` +
+          `ℹ️ Reason: ${reason}\n\n` +
+          `📝 Please review the data and resubmit.`
+        );
+      }
+      return (
+        `❌ Postingiz rad etildi.\n` +
+        `ℹ️ Sabab: ${reason}\n\n` +
+        `📝 Ma'lumotlarni tekshirib qayta topshiring.`
+      );
+    };
+
+    // Notify user if telegram_id exists
+    if (post.user?.telegram_id) {
+      const userLang =
+        this.userLanguageService.getUserLanguage(post.user.telegram_id) ||
+        Language.UZ;
+      const message = buildRejectMessage(userLang);
+      try {
+        await ctx.telegram.sendMessage(post.user.telegram_id, message);
+      } catch (err) {
+        console.log('Failed to notify user on reject', err?.message);
+      }
+    }
+
+    return post;
   }
 
   // Postni rad etish
@@ -293,6 +380,61 @@ export class BotAdminService {
 
   // ========== FORMAT FUNCTIONS ==========
 
+  // Postni admin uchun formatlash (DB Entity ga tayangan holatda)
+  formatEntityForAdmin(post: any): { caption: string; keyboard: any } {
+    const typeText =
+      post.type === Post_Type.RESUME ? '🧑‍💼 REZYUME' : '🏢 VAKANSIYA';
+
+    const subCat =
+      post.subCategory?.translations?.[0]?.name ||
+      post.subCategory?.translations?.find?.((t) => t.lang === Language.UZ)
+        ?.name ||
+      '...';
+
+    const caption =
+      post.type === Post_Type.RESUME
+        ? `
+${typeText}
+
+🎯 <b>Kasb:</b> ${subCat}
+📊 <b>Tajriba:</b> ${post.experience || '...'}
+💰 <b>Maosh:</b> ${post.salary || '...'}
+👤 <b>Ism:</b> ${post.user?.name || '...'}
+🎂 <b>Yosh:</b> ${post.age || '...'}
+📍 <b>Hudud:</b> ${post.address || '...'}
+🌐 <b>Tillar:</b> ${post.language || '...'}
+📁 <b>Portfolio:</b> ${post.portfolio || '...'}
+💼 <b>Ko'nikmalar:</b> ${post.skills || '...'}
+📞 <b>Telefon:</b> ${post.user?.phone_number || '...'}
+👤 <b>Username:</b> ${post.telegram_username || '...'}
+        `.trim()
+        : `
+${typeText}
+
+🎯 <b>Kasb:</b> ${subCat}
+🏛 <b>Kompaniya:</b> ${post.user?.company_name || '...'}
+🖥 <b>Ish turi:</b> ${post.work_format || '...'}
+📍 <b>Hudud:</b> ${post.address || '...'}
+📈 <b>Daraja:</b> ${post.level || '...'}
+📋 <b>Talablar:</b> ${post.skills || '...'}
+💰 <b>Maosh:</b> ${post.salary || '...'}
+📁 <b>Portfolio:</b> ${post.portfolio || '...'}
+📞 <b>Telefon:</b> ${post.user?.phone_number || '...'}
+👤 <b>Username:</b> ${post.telegram_username || '...'}
+        `.trim();
+
+    const postId = post.id || post.post_id;
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: '✅ Tasdiqlash', callback_data: `approve_${postId}` },
+          { text: '❌ Bekor qilish', callback_data: `reject_${postId}` },
+        ],
+      ],
+    };
+    return { caption, keyboard };
+  }
+
   // Postni admin uchun formatlash
   formatPostForAdmin(post: Post): { caption: string; keyboard: any } {
     let caption = '';
@@ -339,9 +481,14 @@ ${typeText}
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '✅ Tasdiqlash', callback_data: `approve_${post.id}` },
-          { text: '✏️ Tahrirlash', callback_data: `edit_${post.id}` },
-          { text: '❌ Bekor qilish', callback_data: `reject_${post.id}` },
+          {
+            text: '✅ Tasdiqlash',
+            callback_data: `approve_${post.job_posts_id || post.id}`,
+          },
+          {
+            text: '❌ Bekor qilish',
+            callback_data: `reject_${post.job_posts_id || post.id}`,
+          },
         ],
       ],
     };

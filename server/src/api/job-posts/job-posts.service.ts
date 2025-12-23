@@ -5,16 +5,21 @@ import { catchError, successRes } from 'src/infrastructure/response';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JobPostsEntity } from 'src/core/entity/job-posts.entity';
 import type { JobPostsRepository } from 'src/core/repository/job-posts.repository';
-import { Language, Post_Status, Post_Type } from 'src/common/enums';
+import {
+  Language,
+  Post_Status,
+  Post_Type,
+  Work_Format,
+  Level,
+} from 'src/common/enums';
 import { SubCategoryTranslationEntity } from 'src/core/entity/sub_category_translation';
 import type { SubCategoryTranslationRepository } from 'src/core/repository/sub_category_translation.repository';
 import { MyPostsDto } from './dto/my-posts.dto';
 import { UserEntity } from 'src/core/entity/user.entity';
 import type { UserRepository } from 'src/core/repository/user.repository';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, DeepPartial } from 'typeorm';
 import { JobFilterDto } from './dto/job-filter.dto';
 import { CreateVacancyDto } from './dto/create-vacancy.dto';
-import { BotAdminService } from '../bot/bot-admin/bot.admin.service';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
 import config from 'src/config';
@@ -33,7 +38,6 @@ export class JobPostsService {
     private readonly userRepo: UserRepository,
 
     private readonly dataSource: DataSource,
-    private readonly botAdminService: BotAdminService,
     private readonly jobPostsTelegramService: JobPostsTelegramService,
     @InjectBot() private readonly bot: Telegraf,
   ) {}
@@ -167,20 +171,24 @@ export class JobPostsService {
 
       const subCategoryId = await this.findSubCategoryId(sub_category, lang);
 
-      const queryBuilder = this.jobPostRepo
-        .createQueryBuilder('job')
-        .leftJoinAndSelect('job.subCategory', 'subCategory')
-        .leftJoinAndSelect('job.user', 'user')
-        .leftJoinAndSelect(
-          'subCategory.translations',
-          'subCategoryTranslations',
-        )
-        .where('job.type = :type', { type });
+    const queryBuilder = this.jobPostRepo
+      .createQueryBuilder('job')
+      .leftJoinAndSelect('job.subCategory', 'subCategory')
+      .leftJoinAndSelect('job.user', 'user')
+      .leftJoinAndSelect(
+        'subCategory.translations',
+        'subCategoryTranslations',
+      )
+      .where('job.type = :type', { type });
+    // Faqat admin tomonidan tasdiqlangan postlar botdagi filterda ko'rinadi
+    queryBuilder.andWhere('job.post_status = :status', {
+      status: Post_Status.APPROVED,
+    });
 
-      // Filterlarni qo'llash
-      if (subCategoryId) {
-        queryBuilder.andWhere('job.sub_category_id = :sub_category_id', {
-          sub_category_id: subCategoryId,
+    // Filterlarni qo'llash
+    if (subCategoryId) {
+      queryBuilder.andWhere('job.sub_category_id = :sub_category_id', {
+        sub_category_id: subCategoryId,
         });
       }
 
@@ -298,6 +306,20 @@ export class JobPostsService {
     return jobPost.view_count;
   }
 
+  /**
+   * Update post status helper (used for admin reject flow).
+   */
+  async updatePostStatus(
+    postId: string,
+    status: Post_Status,
+  ): Promise<JobPostsEntity | null> {
+    const post = await this.findByPostId(postId);
+    if (!post) return null;
+    post.post_status = status;
+    await this.jobPostRepo.save(post);
+    return post;
+  }
+
   private buildRedirectUrl(postId: string, target?: 'portfolio') {
     const redirectHost =
       config.PROD_HOST || config.HOST_URL || 'https://t.me/Reztalpost';
@@ -319,6 +341,20 @@ export class JobPostsService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Contact URL ustuvorligi: username > fallback channel
+   */
+  private generateContactUrl(
+    tg_username?: string | null,
+    phone_number?: string | null,
+  ): string {
+    if (tg_username && tg_username.trim()) {
+      const username = tg_username.replace(/^@/, '').trim();
+      return `https://t.me/${username}`;
+    }
+    return 'https://t.me/Reztalpost';
   }
 
   async redirectToJobPost(id: string, res: any, target?: string) {
@@ -364,7 +400,7 @@ export class JobPostsService {
     const contactUrl =
       target === 'portfolio' && hasPortfolio
         ? post.portfolio
-        : this.botAdminService.generateContactUrl(
+        : this.generateContactUrl(
             post.telegram_username,
             post.user?.phone_number,
           );
@@ -419,21 +455,31 @@ export class JobPostsService {
       );
   }
 
-  async findByPostId(id: string): Promise<JobPostsEntity | null> {
+  async findByPostId(
+    id: string,
+    withRelations = false,
+  ): Promise<JobPostsEntity | null> {
+    console.log('[FIND BY POST ID]', { id, withRelations });
     const isNumericId = /^\d+$/.test(String(id));
     let post: JobPostsEntity | null = null;
+
+    const baseRelations = ['user'];
+    const extraRelations = withRelations
+      ? ['subCategory', 'subCategory.translations']
+      : [];
+    const relations = [...baseRelations, ...extraRelations];
 
     if (isNumericId) {
       post = await this.jobPostRepo.findOne({
         where: { post_id: id },
-        relations: ['user'],
+        relations,
       });
     }
 
     if (!post) {
       post = await this.jobPostRepo.findOne({
         where: { id },
-        relations: ['user'],
+        relations,
       });
     }
 
@@ -477,6 +523,78 @@ export class JobPostsService {
     }
 
     return post;
+  }
+
+  /**
+   * Admin edit helper: update allowed fields on a post (and user phone if provided).
+   */
+  async updateAdminPost(
+    postId: string,
+    changes: {
+      salary?: string;
+      address?: string | null;
+      work_format?: Work_Format;
+      level?: Level;
+      skills?: string;
+      experience?: string;
+      age?: string;
+      language?: string;
+      portfolio?: string;
+      telegram_username?: string;
+      phone_number?: string;
+      company_name?: string;
+      sub_category?: string;
+      name?: string;
+    },
+  ) {
+    const post = await this.findByPostId(postId);
+    if (!post) throw new NotFoundException('Job post not found');
+
+    const updateData: DeepPartial<JobPostsEntity> = {};
+
+    if (changes.salary !== undefined) updateData.salary = changes.salary;
+    if (changes.address !== undefined) updateData.address = changes.address;
+    if (changes.work_format !== undefined)
+      updateData.work_format = changes.work_format;
+    if (changes.level !== undefined) updateData.level = changes.level;
+    if (changes.skills !== undefined) updateData.skills = changes.skills;
+    if (changes.experience !== undefined)
+      updateData.experience = changes.experience;
+    if (changes.age !== undefined) updateData.age = changes.age;
+    if (changes.language !== undefined) updateData.language = changes.language;
+    if (changes.portfolio !== undefined) updateData.portfolio = changes.portfolio;
+    if (changes.telegram_username !== undefined)
+      updateData.telegram_username = changes.telegram_username;
+    if (changes.sub_category !== undefined) {
+      const subId = await this.findSubCategoryId(changes.sub_category);
+      if (subId) {
+        updateData.sub_category_id = subId;
+      }
+    }
+
+    if (Object.keys(updateData).length) {
+      await this.jobPostRepo.update({ id: post.id }, updateData);
+    }
+
+    if (changes.phone_number !== undefined && post.user_id) {
+      await this.userRepo.update(
+        { id: post.user_id },
+        { phone_number: changes.phone_number },
+      );
+    }
+
+    if (changes.company_name !== undefined && post.user_id) {
+      await this.userRepo.update(
+        { id: post.user_id },
+        { company_name: changes.company_name },
+      );
+    }
+
+    if (changes.name !== undefined && post.user_id) {
+      await this.userRepo.update({ id: post.user_id }, { name: changes.name });
+    }
+
+    return this.findByPostId(postId);
   }
 
   // async findFilteredWithPagination
