@@ -234,6 +234,7 @@
     "region_invalid": "❗ Please select region from buttons",
     "work_type_invalid": "❗ Please select work type from buttons",
     "language_invalid": "❗ Please select at least one language",
+    "language_duplicate": "❗ This language is already selected, choose another one",
     "gender_invalid": "❗ Please select your gender"
   },
 

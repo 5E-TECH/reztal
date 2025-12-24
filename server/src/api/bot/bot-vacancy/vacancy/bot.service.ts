@@ -113,14 +113,14 @@ export class BotVacancyService {
   }
 
   // Handle employer answer
-  async handleEmployerAnswer(chatId: string, msg: any) {
+  async handleEmployerAnswer(chatId: string, msg: any, langOverride?: Language) {
     const state = this.employerStates.get(chatId);
     if (!state) return null;
 
     const step = state.step;
     console.log('State step in service:', step);
 
-    const lang: Language = Language.UZ;
+    const lang: Language = langOverride || state.lang || Language.UZ;
     const questions = this.getQuestions(lang);
     console.log('Questions:', questions);
 
@@ -140,7 +140,10 @@ export class BotVacancyService {
           } else {
             this.employerStates.delete(chatId);
             return {
-              message: 'Asosiy menyuga qaytdingiz',
+              message: this.i18nService.t(
+                lang,
+                'back_to_main_prompt',
+              ),
               keyboard: this.getKeyboard(lang, 'main'),
             };
           }

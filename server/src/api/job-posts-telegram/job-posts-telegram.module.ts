@@ -4,13 +4,11 @@ import { JobPostsTelegramController } from './job-posts-telegram.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JobPostsTelegramEntity } from 'src/core/entity/job-posts-telegram.entity';
 import { JobPostsEntity } from 'src/core/entity/job-posts.entity';
-import { BotAdminService } from '../bot/bot-admin/bot.admin.service';
-import { UserLanguageService } from '../user/user-language.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([JobPostsTelegramEntity, JobPostsEntity])],
   controllers: [JobPostsTelegramController],
-  providers: [JobPostsTelegramService, BotAdminService, UserLanguageService],
+  providers: [JobPostsTelegramService],
   exports: [JobPostsTelegramService],
 })
 export class JobPostsTelegramModule {}
